@@ -18,13 +18,13 @@ public class SignatureVerificationService {
     private final PublicKeyService publicKeyService;
 
     /**
-     * تأیید امضای توکن با استفاده از کلید عمومی Gateway
+     * Verify signature of token using Gateway public key from Config Server
      */
-    public boolean verifySignature(SignedTokenData signedTokenData) {
+    public boolean verifyGatewaySignature(SignedTokenData signedTokenData) {
         try {
             PublicKey publicKey = publicKeyService.getGatewayPublicKey();
             if (publicKey == null) {
-                log.error("Service1: کلید عمومی Gateway در دسترس نیست");
+                log.error("Service1: Gateway public key not available from Config Server");
                 return false;
             }
 
@@ -34,21 +34,51 @@ public class SignatureVerificationService {
             boolean isValid = verifySignatureWithPublicKey(dataToVerify, signature, publicKey);
             
             if (isValid) {
-                log.info("Service1: امضای توکن با کلید عمومی Gateway تأیید شد");
+                log.info("Service1: Token signature verified with Gateway public key from Config Server");
             } else {
-                log.warn("Service1: امضای توکن با کلید عمومی Gateway تأیید نشد");
+                log.warn("Service1: Token signature verification failed with Gateway public key");
             }
             
             return isValid;
             
         } catch (Exception e) {
-            log.error("Service1: خطا در تأیید امضای توکن: {}", e.getMessage());
+            log.error("Service1: Error verifying Gateway signature: {}", e.getMessage());
             return false;
         }
     }
 
     /**
-     * تأیید امضا با استفاده از کلید عمومی RSA
+     * Verify signature using SSO public key from Config Server
+     */
+    public boolean verifySsoSignature(SignedTokenData signedTokenData) {
+        try {
+            PublicKey publicKey = publicKeyService.getSsoPublicKey();
+            if (publicKey == null) {
+                log.error("Service1: SSO public key not available from Config Server");
+                return false;
+            }
+
+            String dataToVerify = signedTokenData.getSignedData();
+            String signature = signedTokenData.getSignature();
+
+            boolean isValid = verifySignatureWithPublicKey(dataToVerify, signature, publicKey);
+            
+            if (isValid) {
+                log.info("Service1: Token signature verified with SSO public key from Config Server");
+            } else {
+                log.warn("Service1: Token signature verification failed with SSO public key");
+            }
+            
+            return isValid;
+            
+        } catch (Exception e) {
+            log.error("Service1: Error verifying SSO signature: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Verify signature using RSA public key
      */
     private boolean verifySignatureWithPublicKey(String data, String signature, PublicKey publicKey) {
         try {
@@ -59,20 +89,20 @@ public class SignatureVerificationService {
             byte[] signatureBytes = Base64.getDecoder().decode(signature);
             boolean isValid = sig.verify(signatureBytes);
             
-            log.debug("Service1: تأیید امضای RSA: {}", isValid);
+            log.debug("Service1: RSA signature verification: {}", isValid);
             return isValid;
             
         } catch (SignatureException e) {
-            log.error("Service1: خطا در تأیید امضای RSA: {}", e.getMessage());
+            log.error("Service1: Error verifying RSA signature: {}", e.getMessage());
             return false;
         } catch (Exception e) {
-            log.error("Service1: خطا در تأیید امضای RSA: {}", e.getMessage());
+            log.error("Service1: Error verifying RSA signature: {}", e.getMessage());
             return false;
         }
     }
 
     /**
-     * تأیید امضا با استفاده از hash (روش جایگزین)
+     * Verify signature using hash (fallback method)
      */
     public boolean verifySignatureWithHash(SignedTokenData signedTokenData) {
         try {
@@ -82,21 +112,21 @@ public class SignatureVerificationService {
             boolean isValid = expectedSignature.equals(actualSignature);
             
             if (isValid) {
-                log.info("Service1: امضای توکن با hash تأیید شد");
+                log.info("Service1: Token signature verified with hash");
             } else {
-                log.warn("Service1: امضای توکن با hash تأیید نشد");
+                log.warn("Service1: Token signature verification failed with hash");
             }
             
             return isValid;
             
         } catch (Exception e) {
-            log.error("Service1: خطا در تأیید امضای hash: {}", e.getMessage());
+            log.error("Service1: Error verifying hash signature: {}", e.getMessage());
             return false;
         }
     }
 
     /**
-     * تولید hash از داده‌ها
+     * Generate hash from data
      */
     private String generateHash(String data) {
         try {
@@ -105,39 +135,61 @@ public class SignatureVerificationService {
             return Base64.getEncoder().encodeToString(hash);
             
         } catch (NoSuchAlgorithmException e) {
-            log.error("Service1: خطا در تولید hash: {}", e.getMessage());
+            log.error("Service1: Error generating hash: {}", e.getMessage());
             return null;
         }
     }
 
     /**
-     * تأیید جامع امضا (ابتدا RSA، سپس hash)
+     * Comprehensive signature verification with fallback
      */
-    public boolean verifySignatureComprehensive(SignedTokenData signedTokenData) {
-        // ابتدا با کلید عمومی RSA تأیید کن
-        boolean rsaValid = verifySignature(signedTokenData);
+    public boolean verifySignatureComprehensive(SignedTokenData signedTokenData, String serviceName) {
+        // First try with the specified service's public key
+        boolean rsaValid = false;
+        
+        switch (serviceName.toLowerCase()) {
+            case "gateway":
+                rsaValid = verifyGatewaySignature(signedTokenData);
+                break;
+            case "sso":
+                rsaValid = verifySsoSignature(signedTokenData);
+                break;
+            default:
+                log.warn("Service1: Unknown service for signature verification: {}", serviceName);
+        }
+        
         if (rsaValid) {
             return true;
         }
 
-        // اگر RSA موفق نبود، با hash تأیید کن
-        log.warn("Service1: تأیید RSA ناموفق، تلاش با hash");
+        // If RSA fails, try with hash
+        log.warn("Service1: RSA verification failed for {}, trying hash", serviceName);
         return verifySignatureWithHash(signedTokenData);
     }
 
     /**
-     * بررسی دسترسی کلید عمومی Gateway
+     * Check if public keys are available from Config Server
      */
     public boolean isGatewayPublicKeyAvailable() {
-        return publicKeyService.hasCachedPublicKey() || 
+        return publicKeyService.hasCachedPublicKey("gateway") || 
                publicKeyService.getGatewayPublicKey() != null;
     }
 
+    public boolean isSsoPublicKeyAvailable() {
+        return publicKeyService.hasCachedPublicKey("sso") || 
+               publicKeyService.getSsoPublicKey() != null;
+    }
+
     /**
-     * به‌روزرسانی کلید عمومی Gateway
+     * Refresh public keys from Config Server
      */
     public void refreshGatewayPublicKey() {
-        log.info("Service1: به‌روزرسانی کلید عمومی Gateway");
-        publicKeyService.refreshPublicKey();
+        log.info("Service1: Refreshing Gateway public key from Config Server");
+        publicKeyService.refreshPublicKey("gateway");
+    }
+
+    public void refreshSsoPublicKey() {
+        log.info("Service1: Refreshing SSO public key from Config Server");
+        publicKeyService.refreshPublicKey("sso");
     }
 } 

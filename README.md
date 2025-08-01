@@ -1,11 +1,12 @@
 # Microservices Authentication & Authorization System
 
 ## Overview
-This project implements a comprehensive authentication and authorization system using microservices architecture with Spring Boot, JWT tokens, Redis caching, and PostgreSQL databases.
+This project implements a comprehensive authentication and authorization system using microservices architecture with Spring Boot, JWT tokens, Redis caching, PostgreSQL databases, and **Spring Cloud Config** for centralized configuration management.
 
 ## Architecture
 
 ### Services
+- **Config Server** (Port 8888): Centralized configuration management
 - **SSO Service** (Port 8081): Central authentication service with JWT token generation
 - **Gateway Service** (Port 8080): API Gateway with authentication/authorization filtering
 - **ACL Service** (Port 8083): Access Control List service for role-based permissions
@@ -13,32 +14,276 @@ This project implements a comprehensive authentication and authorization system 
 - **Redis** (Port 6379): High-performance caching layer
 - **PostgreSQL**: Database for all services
 
+## Spring Cloud Config Architecture
+
+### Overview
+**Spring Cloud Config** provides centralized configuration management for all public keys and sensitive configuration data across all microservices.
+
+### Benefits
+- ✅ **Centralized Configuration**: All public keys in one place
+- ✅ **Dynamic Updates**: Keys can be updated without restart
+- ✅ **Version Control**: Keys are versioned in Git
+- ✅ **Environment Specific**: Different keys for different environments
+- ✅ **Security**: Encrypted sensitive data
+
+### Architecture Flow
+```
+Service1 → Config Server (Port 8888) → Configuration Files
+    ↓
+Service1 caches public keys in Redis
+    ↓
+Service1 uses cached keys for signature verification
+```
+
+### Configuration Structure
+
+#### Config Server (Port 8888)
+```
+config-server/
+├── src/main/resources/
+│   ├── application.properties
+│   └── config/
+│       ├── gateway.properties
+│       ├── service1.properties
+│       └── sso.properties
+```
+
+#### Service1 Configuration
+```properties
+# Public Keys from Config Server
+public.keys.gateway.public-key=GATEWAY_PUBLIC_KEY
+public.keys.gateway.key-type=RSA
+public.keys.gateway.key-size=2048
+
+public.keys.sso.public-key=SSO_PUBLIC_KEY
+public.keys.sso.key-type=RSA
+public.keys.sso.key-size=2048
+
+public.keys.service1.public-key=SERVICE1_PUBLIC_KEY
+public.keys.service1.key-type=RSA
+public.keys.service1.key-size=2048
+```
+
+### Complete Flow
+
+#### Step 1: Service1 Connects to Config Server
+```
+Service1 startup
+    ↓
+Service1 reads bootstrap.properties
+    ↓
+Service1 connects to Config Server (Port 8888)
+    ↓
+Config Server provides configuration
+    ↓
+Service1 caches public keys in Redis
+```
+
+#### Step 2: Signature Verification
+```
+Service1 receives signed token
+    ↓
+Service1 gets cached public key from Redis
+    ↓
+If not cached, Service1 gets from Config Server
+    ↓
+Service1 verifies signature using public key
+    ↓
+Service1 uses token if verification succeeds
+```
+
+### API Endpoints
+
+#### Config Server Endpoints:
+- `GET /{application}/{profile}`: Get configuration for application
+- `GET /{application}/{profile}/{label}`: Get configuration with label
+
+#### Service1 Test Endpoints:
+- `GET /service1/test/config/status`: Check Config Server status
+- `GET /service1/test/config/refresh/{serviceName}`: Refresh config for service
+- `GET /service1/test/config/keys`: Get all config keys
+
+### Configuration Properties
+
+#### Service1 Bootstrap Configuration:
+```properties
+# Spring Cloud Config Client Configuration
+spring.application.name=service1
+spring.cloud.config.uri=http://localhost:8888
+spring.cloud.config.fail-fast=true
+spring.cloud.config.retry.initial-interval=1000
+spring.cloud.config.retry.max-interval=2000
+spring.cloud.config.retry.max-attempts=6
+```
+
+#### Config Server Configuration:
+```properties
+# Server Configuration
+server.port=8888
+
+# For local development (file-based config)
+spring.profiles.active=native
+spring.cloud.config.server.native.search-locations=classpath:/config
+```
+
+### Security Benefits
+
+#### ✅ Centralized Key Management
+- **Single Source of Truth**: All public keys in Config Server
+- **Version Control**: Keys are versioned and tracked
+- **Environment Isolation**: Different keys for different environments
+- **Dynamic Updates**: Keys can be updated without service restart
+
+#### ✅ Enhanced Security
+- **Encrypted Configuration**: Sensitive data can be encrypted
+- **Access Control**: Config Server can be secured
+- **Audit Trail**: All configuration changes are tracked
+- **Rollback Capability**: Previous configurations can be restored
+
+### Performance Benefits
+
+#### ✅ Caching Strategy
+- **Config Caching**: Service1 caches configuration in Redis
+- **Fast Access**: Local cache for quick configuration access
+- **Reduced Network Calls**: Minimize calls to Config Server
+- **Fallback Mechanism**: Local cache if Config Server unavailable
+
+#### ✅ Load Distribution
+- **Config Server**: Handles all configuration requests
+- **Service1**: Uses cached configuration for fast access
+- **Redis**: High-performance caching layer
+- **Reduced Latency**: Local configuration access
+
+### Testing the Spring Cloud Config Integration
+
+#### Test 1: Check Config Server Status
+```bash
+# Check if Config Server is running
+curl http://localhost:8888/service1/default
+
+# Check specific configuration
+curl http://localhost:8888/service1/default/master
+```
+
+#### Test 2: Check Service1 Config Status
+```bash
+# Check if Service1 can access Config Server
+curl http://localhost:8082/service1/test/config/status
+
+# Get all configuration keys
+curl http://localhost:8082/service1/test/config/keys
+```
+
+#### Test 3: Refresh Configuration
+```bash
+# Refresh Gateway configuration
+curl http://localhost:8082/service1/test/config/refresh/gateway
+
+# Refresh SSO configuration
+curl http://localhost:8082/service1/test/config/refresh/sso
+```
+
+### Setup Instructions
+
+#### 1. Start Config Server
+```bash
+cd config-server
+mvn spring-boot:run
+```
+
+#### 2. Update Configuration Files
+```bash
+# Update public keys in config files
+# config-server/src/main/resources/config/service1.properties
+public.keys.gateway.public-key=YOUR_GATEWAY_PUBLIC_KEY
+public.keys.sso.public-key=YOUR_SSO_PUBLIC_KEY
+```
+
+#### 3. Start Service1
+```bash
+cd service1
+mvn spring-boot:run
+```
+
+#### 4. Verify Configuration
+```bash
+# Check if Service1 can access Config Server
+curl http://localhost:8082/service1/test/config/status
+```
+
+### Monitoring
+
+#### Config Server Monitoring
+```bash
+# Check Config Server health
+curl http://localhost:8888/actuator/health
+
+# Check configuration endpoints
+curl http://localhost:8888/service1/default
+```
+
+#### Service1 Configuration Monitoring
+```bash
+# Check cached configuration
+redis-cli keys "public_key:*"
+
+# Check configuration status
+curl http://localhost:8082/service1/test/config/status
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+##### Config Server Connection Issues
+```bash
+# Check Config Server logs
+tail -f config-server/logs/application.log
+
+# Check Service1 bootstrap logs
+tail -f service1/logs/application.log
+```
+
+##### Configuration Refresh Issues
+```bash
+# Force refresh configuration
+curl -X POST http://localhost:8082/actuator/refresh
+
+# Check configuration cache
+redis-cli keys "*config*"
+```
+
+##### Public Key Issues
+```bash
+# Check public key availability
+curl http://localhost:8082/service1/test/config/keys
+
+# Refresh specific service keys
+curl http://localhost:8082/service1/test/config/refresh/gateway
+```
+
 ## Public Key Distribution Flow
 
-### New Architecture: Gateway as Public Key Provider
+### New Architecture: Config Server as Public Key Provider
 ```
-Service1 → Gateway → SSO → Gateway → Service1
+Service1 → Config Server → Configuration Files
 ```
 
-### Benefits of Gateway Public Key Distribution:
-- ✅ **Centralized Control**: Gateway manages all public key distribution
+### Benefits of Config Server Public Key Distribution:
+- ✅ **Centralized Control**: Config Server manages all public key distribution
 - ✅ **Consistent Security**: All services use the same public key source
-- ✅ **Better Performance**: Gateway caches public key, reduces SSO load
-- ✅ **Simplified Architecture**: Service1 doesn't need direct SSO access
+- ✅ **Better Performance**: Config Server caches public keys, reduces network load
+- ✅ **Simplified Architecture**: Service1 doesn't need direct service access
 
 ### Complete Flow:
 
-#### Step 1: Service1 Requests Public Key
+#### Step 1: Service1 Requests Public Keys
 ```
-Service1 → Gateway (/api/gateway/public-key)
+Service1 → Config Server (Port 8888)
     ↓
-Gateway → SSO (/api/auth/public-key)
+Config Server provides public keys from configuration files
     ↓
-SSO returns public key to Gateway
-    ↓
-Gateway returns public key to Service1
-    ↓
-Service1 caches public key in Redis
+Service1 caches public keys in Redis
 ```
 
 #### Step 2: Signature Verification
@@ -49,44 +294,49 @@ Service1 gets cached public key from Redis
     ↓
 Service1 verifies signature using RSA
     ↓
-If verification fails, Service1 refreshes public key from Gateway
+If verification fails, Service1 refreshes public key from Config Server
 ```
 
 ### API Endpoints:
 
-#### Gateway Public Key Endpoints:
-- `GET /api/gateway/public-key`: Get SSO public key through Gateway
-- `GET /api/gateway/public-key/health`: Check public key availability
+#### Config Server Public Key Endpoints:
+- `GET /service1/default`: Get Service1 configuration with public keys
+- `GET /gateway/default`: Get Gateway configuration with public keys
+- `GET /sso/default`: Get SSO configuration with public keys
 
 #### Service1 Test Endpoints:
-- `GET /service1/test/public-key/status`: Check public key status
-- `GET /service1/test/public-key/refresh`: Force refresh public key
+- `GET /service1/test/config/status`: Check Config Server status
+- `GET /service1/test/config/refresh/{serviceName}`: Force refresh public key
+- `GET /service1/test/config/keys`: Get all configuration keys
 
 ### Configuration:
 
-#### Service1 Configuration:
+#### Service1 Bootstrap Configuration:
 ```properties
-# Gateway Service URL for Public Key
-gateway.service.url=http://localhost:8080/api/gateway/public-key
+# Config Server URL
+spring.cloud.config.uri=http://localhost:8888
+spring.application.name=service1
+spring.cloud.config.fail-fast=true
 ```
 
-#### Gateway Configuration:
+#### Config Server Configuration:
 ```properties
-# SSO Service URL for public key requests
-sso.service.url=http://localhost:8081/api/auth/public-key
+# Local file-based configuration
+spring.profiles.active=native
+spring.cloud.config.server.native.search-locations=classpath:/config
 ```
 
 ### Security Benefits:
-- **Cryptographic Integrity**: Signed tokens prevent tampering
-- **Public Key Verification**: RSA signature verification
-- **Fallback Mechanism**: Hash verification if RSA fails
-- **Automatic Refresh**: Public key refresh on verification failure
+- **Centralized Key Management**: All public keys in Config Server
+- **Version Control**: Keys are versioned and tracked
+- **Environment Isolation**: Different keys for different environments
+- **Dynamic Updates**: Keys can be updated without service restart
 
 ### Performance Benefits:
-- **Cached Public Keys**: Redis caching reduces network calls
-- **Single Source**: Gateway as central public key provider
-- **Reduced SSO Load**: Gateway handles public key distribution
-- **Fast Verification**: Local signature verification in Service1
+- **Config Caching**: Service1 caches configuration in Redis
+- **Fast Access**: Local cache for quick configuration access
+- **Reduced Network Calls**: Minimize calls to Config Server
+- **Fallback Mechanism**: Local cache if Config Server unavailable
 
 ## Redis Caching Strategy
 
@@ -152,12 +402,12 @@ The system implements cryptographic signing of cached token data to prevent manu
 ### Implementation
 - **SignedTokenData**: New model with cryptographic signature
 - **SHA-256 Signing**: Signs token + sorted permissions + timestamps
-- **RSA Verification**: Uses SSO public key for signature verification
+- **RSA Verification**: Uses public keys from Config Server for signature verification
 - **Fallback Mechanism**: Hash verification if RSA fails
 
 ### Security Features
 - **Tamper Prevention**: Cryptographic signatures prevent manual insertion
-- **Public Key Distribution**: Gateway distributes SSO public keys
+- **Config Server Distribution**: Config Server distributes all public keys
 - **Signature Verification**: Service1 verifies signatures before using cached data
 - **Automatic Refresh**: Public key refresh on verification failure
 
@@ -191,10 +441,11 @@ redis-cli ping
 ### Service Startup Order
 1. **PostgreSQL**: Database server
 2. **Redis**: Caching layer
-3. **SSO Service**: Authentication service
-4. **ACL Service**: Authorization service
-5. **Gateway Service**: API Gateway
-6. **Service1**: Example microservice
+3. **Config Server**: Configuration management (Port 8888)
+4. **SSO Service**: Authentication service (Port 8081)
+5. **ACL Service**: Authorization service (Port 8083)
+6. **Gateway Service**: API Gateway (Port 8080)
+7. **Service1**: Example microservice (Port 8082)
 
 ### Build and Run
 ```bash
@@ -202,6 +453,7 @@ redis-cli ping
 mvn clean install
 
 # Run services (in separate terminals)
+cd config-server && mvn spring-boot:run
 cd sso && mvn spring-boot:run
 cd acl && mvn spring-boot:run
 cd gateway && mvn spring-boot:run
@@ -210,16 +462,16 @@ cd service1 && mvn spring-boot:run
 
 ## Testing
 
-### Test Public Key Flow
+### Test Config Server Integration
 ```bash
-# Test Gateway public key endpoint
-curl http://localhost:8080/api/gateway/public-key
+# Test Config Server
+curl http://localhost:8888/service1/default
 
-# Test Service1 public key status
-curl http://localhost:8082/service1/test/public-key/status
+# Test Service1 config status
+curl http://localhost:8082/service1/test/config/status
 
-# Test public key refresh
-curl http://localhost:8082/service1/test/public-key/refresh
+# Test config refresh
+curl http://localhost:8082/service1/test/config/refresh/gateway
 ```
 
 ### Test Authentication Flow
@@ -257,9 +509,13 @@ redis-cli keys "token:*"
 
 # Check public key cache
 redis-cli keys "public_key:*"
+
+# Check config cache
+redis-cli keys "*config*"
 ```
 
 ### Service Logs
+- **Config Server**: Look for configuration requests
 - **Gateway**: Look for "GATEWAY CACHE HIT/MISS" messages
 - **Service1**: Look for "SIGNED CACHE HIT/MISS" messages
 - **SSO**: Look for token validation requests
@@ -268,6 +524,7 @@ redis-cli keys "public_key:*"
 ## Security Considerations
 
 ### Defense in Depth
+- **Config Server Level**: Centralized configuration management
 - **Gateway Level**: Primary authentication/authorization
 - **Service Level**: Secondary validation with cached data
 - **Cryptographic Integrity**: Signed tokens prevent tampering
@@ -290,10 +547,12 @@ redis-cli keys "public_key:*"
 ### Caching Strategy
 - **Token Caching**: 30-minute TTL for signed tokens
 - **Public Key Caching**: 24-hour TTL for public keys
+- **Config Caching**: 1-hour TTL for configuration data
 - **Permission Caching**: All permissions cached with tokens
 - **Signature Verification**: Local verification in Service1
 
 ### Load Distribution
+- **Config Server**: Handles all configuration requests
 - **Gateway**: Handles all initial authentication/authorization
 - **Service1**: Uses cached data for fast responses
 - **SSO**: Reduced load through caching
@@ -302,6 +561,7 @@ redis-cli keys "public_key:*"
 ### Response Times
 - **Cache Hit**: ~1ms (Redis lookup + signature verification)
 - **Cache Miss**: ~50ms (SSO + ACL calls + caching)
+- **Config Server**: ~10ms (configuration retrieval)
 - **Service1**: ~0ms (no validation needed)
 - **Overall**: 90%+ cache hit rate expected
 
@@ -309,16 +569,26 @@ redis-cli keys "public_key:*"
 
 ### Common Issues
 
+#### Config Server Issues
+```bash
+# Check Config Server health
+curl http://localhost:8888/actuator/health
+
+# Check configuration endpoints
+curl http://localhost:8888/service1/default
+
+# Check Config Server logs
+tail -f config-server/logs/application.log
+```
+
 #### Public Key Issues
 ```bash
-# Check Gateway public key endpoint
-curl http://localhost:8080/api/gateway/public-key
+# Check public key availability
+curl http://localhost:8082/service1/test/config/keys
 
-# Check Service1 public key status
-curl http://localhost:8082/service1/test/public-key/status
-
-# Force refresh public key
-curl http://localhost:8082/service1/test/public-key/refresh
+# Force refresh public keys
+curl http://localhost:8082/service1/test/config/refresh/gateway
+curl http://localhost:8082/service1/test/config/refresh/sso
 ```
 
 #### Cache Issues
@@ -328,6 +598,9 @@ redis-cli ping
 
 # Check cached tokens
 redis-cli keys "token:*"
+
+# Check cached public keys
+redis-cli keys "public_key:*"
 
 # Clear all caches
 redis-cli flushall
@@ -343,9 +616,13 @@ curl http://localhost:8083/api/acl/health
 
 # Check Gateway health
 curl http://localhost:8080/api/gateway/public-key/health
+
+# Check Config Server health
+curl http://localhost:8888/actuator/health
 ```
 
 ### Log Analysis
+- **Config Server Logs**: Look for configuration requests
 - **Gateway Logs**: Look for authentication/authorization messages
 - **Service1 Logs**: Look for signature verification messages
 - **SSO Logs**: Look for token validation requests
@@ -355,7 +632,7 @@ curl http://localhost:8080/api/gateway/public-key/health
 
 ### Planned Features
 - **Key Rotation**: Automatic RSA key rotation
-- **Load Balancing**: Multiple SSO/ACL instances
+- **Load Balancing**: Multiple Config Server instances
 - **Metrics**: Prometheus metrics integration
 - **Tracing**: Distributed tracing with Jaeger
 - **Circuit Breaker**: Resilience patterns

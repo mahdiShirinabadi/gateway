@@ -5,25 +5,25 @@ import com.mahdi.sso.dto.LoginResponse;
 import com.mahdi.sso.entity.User;
 import com.mahdi.sso.repository.UserRepository;
 import com.mahdi.sso.util.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
+@Log4j2
 public class AuthService {
     
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private JwtUtil jwtUtil;
-    
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
     
     public LoginResponse login(LoginRequest loginRequest) {
+        log.info("Login attempt for user: {}", loginRequest.getUsername());
+        
         Optional<User> userOptional = userRepository.findByUsername(loginRequest.getUsername());
         
         if (userOptional.isPresent()) {
@@ -32,20 +32,25 @@ public class AuthService {
             // Check if password matches (in real application, password should be encoded)
             if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 String token = jwtUtil.generateToken(user.getUsername());
+                log.info("Login successful for user: {}", user.getUsername());
                 return new LoginResponse(token);
             } else {
+                log.warn("Invalid password for user: {}", loginRequest.getUsername());
                 return new LoginResponse("Invalid password", false);
             }
         } else {
+            log.warn("User not found: {}", loginRequest.getUsername());
             return new LoginResponse("User not found", false);
         }
     }
     
     public boolean validateToken(String token, String username) {
+        log.debug("Validating token for user: {}", username);
         return jwtUtil.validateToken(token, username);
     }
     
     public String extractUsernameFromToken(String token) {
+        log.debug("Extracting username from token");
         return jwtUtil.extractUsername(token);
     }
 } 

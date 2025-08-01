@@ -3,10 +3,12 @@ package com.mahdi.sso.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -15,20 +17,24 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
+@Log4j2
 public class JwtUtil {
     
     @Value("${jwt.expiration}")
     private Long expiration;
     
-    @Autowired
-    private RsaKeyGenerator rsaKeyGenerator;
+    private final RsaKeyGenerator rsaKeyGenerator;
     
     private KeyPair keyPair;
     
-    public JwtUtil() {
+    @PostConstruct
+    public void init() {
         try {
             this.keyPair = rsaKeyGenerator.generateKeyPair();
+            log.info("RSA key pair generated successfully");
         } catch (Exception e) {
+            log.error("Failed to generate RSA key pair", e);
             throw new RuntimeException("Failed to generate RSA key pair", e);
         }
     }
@@ -42,6 +48,7 @@ public class JwtUtil {
     }
     
     public String generateToken(String username) {
+        log.debug("Generating JWT token for user: {}", username);
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, username);
     }
@@ -57,6 +64,7 @@ public class JwtUtil {
     }
     
     public Boolean validateToken(String token, String username) {
+        log.debug("Validating JWT token for user: {}", username);
         final String tokenUsername = extractUsername(token);
         return (username.equals(tokenUsername) && !isTokenExpired(token));
     }

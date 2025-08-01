@@ -8,65 +8,63 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
-import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @Component
 @RequiredArgsConstructor
 @Log4j2
 public class JwtUtil {
     
-    @Value("${jwt.expiration}")
-    private Long expiration;
-    
     private final RsaKeyGenerator rsaKeyGenerator;
     
-    private KeyPair keyPair;
-    
-    @PostConstruct
-    public void init() {
-        try {
-            this.keyPair = rsaKeyGenerator.generateKeyPair();
-            log.info("RSA key pair generated successfully");
-        } catch (Exception e) {
-            log.error("Failed to generate RSA key pair", e);
-            throw new RuntimeException("Failed to generate RSA key pair", e);
-        }
-    }
-    
-    private PrivateKey getPrivateKey() {
-        return keyPair.getPrivate();
-    }
-    
-    private PublicKey getPublicKey() {
-        return keyPair.getPublic();
-    }
+    @Value("${jwt.expiration:86400000}")
+    private long jwtExpiration;
     
     public String generateToken(String username) {
-        log.debug("Generating JWT token for user: {}", username);
+        log.info("Generating JWT token for user: {}", username);
+        
         Map<String, Object> claims = new HashMap<>();
         return createToken(claims, username);
     }
     
     private String createToken(Map<String, Object> claims, String subject) {
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getPrivateKey(), SignatureAlgorithm.RS256)
-                .compact();
+        try {
+            PrivateKey privateKey = rsaKeyGenerator.getPrivateKey();
+            
+            return Jwts.builder()
+                    .setClaims(claims)
+                    .setSubject(subject)
+                    .setIssuedAt(new Date(System.currentTimeMillis()))
+                    .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                    .signWith(privateKey, SignatureAlgorithm.RS256)
+                    .compact();
+        } catch (Exception e) {
+            log.error("Error generating JWT token: {}", e.getMessage());
+            throw new RuntimeException("Failed to generate JWT token", e);
+        }
     }
     
-    public Boolean validateToken(String token, String username) {
-        log.debug("Validating JWT token for user: {}", username);
-        final String tokenUsername = extractUsername(token);
-        return (username.equals(tokenUsername) && !isTokenExpired(token));
+    public Boolean validateToken(String token) {
+        try {
+            log.debug("Validating JWT token");
+            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
+            
+            Jwts.parserBuilder()
+                    .setSigningKey(publicKey)
+                    .build()
+                    .parseClaimsJws(token);
+            
+            log.debug("JWT token is valid");
+            return true;
+        } catch (Exception e) {
+            log.warn("JWT token validation failed: {}", e.getMessage());
+            return false;
+        }
     }
     
     public String extractUsername(String token) {
@@ -77,25 +75,33 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
     
-    public <T> T extractClaim(String token, java.util.function.Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-    
-    private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getPublicKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        try {
+            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
+            
+            final Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(publicKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            return claimsResolver.apply(claims);
+        } catch (Exception e) {
+            log.error("Error extracting claim from JWT token: {}", e.getMessage());
+            return null;
+        }
     }
     
     private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        try {
+            return extractExpiration(token).before(new Date());
+        } catch (Exception e) {
+            log.error("Error checking token expiration: {}", e.getMessage());
+            return true;
+        }
     }
     
-    // Method to get public key for external validation
-    public PublicKey getPublicKeyForValidation() {
-        return getPublicKey();
+    public String getPublicKeyForValidation() {
+        return rsaKeyGenerator.getPublicKeyAsString();
     }
 } 

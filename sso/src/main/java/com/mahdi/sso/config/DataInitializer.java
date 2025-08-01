@@ -18,19 +18,11 @@ public class DataInitializer implements CommandLineRunner {
     
     @Override
     public void run(String... args) throws Exception {
-        log.info("Starting data initialization...");
+        log.info("Starting SSO data initialization...");
         
-        // Create a test user if it doesn't exist
-        if (!userRepository.findByUsername("testuser").isPresent()) {
-            User testUser = new User();
-            testUser.setUsername("testuser");
-            testUser.setPassword(passwordEncoder.encode("password123"));
-            userRepository.save(testUser);
-            log.info("Test user created: username=testuser, password=password123");
-        } else {
-            log.info("Test user already exists, skipping creation");
-        }
+        // Note: Initial users are now handled by Flyway migrations
+        // This component can be used for additional data setup if needed
         
-        log.info("Data initialization completed");
+        log.info("SSO data initialization completed - using Flyway migrations for initial data");
     }
 } 

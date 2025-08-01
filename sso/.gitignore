@@ -32,6 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 
-### Logs ###
-logs/
-*.log
+### RSA Keys ###
+# Never commit private keys to version control
+src/main/resources/rsa_private.key
+*.key
+*.pem
+*.p12
+*.jks

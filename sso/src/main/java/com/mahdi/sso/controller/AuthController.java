@@ -9,13 +9,10 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.PublicKey;
-import java.util.Base64;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Log4j2
 public class AuthController {
@@ -25,7 +22,7 @@ public class AuthController {
     
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
-        log.info("Received login request for user: {}", loginRequest.getUsername());
+        log.info("Login request received for user: {}", loginRequest.getUsername());
         
         LoginResponse response = authService.login(loginRequest);
         
@@ -33,43 +30,55 @@ public class AuthController {
             log.info("Login successful for user: {}", loginRequest.getUsername());
             return ResponseEntity.ok(response);
         } else {
-            log.warn("Login failed for user: {} - {}", loginRequest.getUsername(), response.getMessage());
+            log.warn("Login failed for user: {}", loginRequest.getUsername());
             return ResponseEntity.badRequest().body(response);
         }
     }
     
     @PostMapping("/validate")
-    public ResponseEntity<Map<String, Object>> validateToken(@RequestParam String token, @RequestParam String username) {
-        log.debug("Token validation request for user: {}", username);
-        boolean isValid = authService.validateToken(token, username);
+    public ResponseEntity<Map<String, Object>> validateToken(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        log.info("Token validation request received");
         
-        Map<String, Object> response = Map.of(
-                "valid", isValid,
-                "message", isValid ? "Token is valid" : "Token is invalid",
-                "username", isValid ? username : null
-        );
+        if (token == null || token.isEmpty()) {
+            log.warn("Token validation failed - No token provided");
+            Map<String, Object> errorResponse = Map.of(
+                "valid", false,
+                "message", "No token provided",
+                "username", null
+            );
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
         
-        log.debug("Token validation result for user {}: {}", username, isValid);
-        return ResponseEntity.ok(response);
+        Map<String, Object> response = authService.validateToken(token);
+        
+        if ((Boolean) response.get("valid")) {
+            log.info("Token validation successful");
+            return ResponseEntity.ok(response);
+        } else {
+            log.warn("Token validation failed");
+            return ResponseEntity.badRequest().body(response);
+        }
     }
     
     @GetMapping("/public-key")
-    public ResponseEntity<String> getPublicKey() {
-        log.debug("Public key request received");
-        try {
-            PublicKey publicKey = jwtUtil.getPublicKeyForValidation();
-            String encodedKey = Base64.getEncoder().encodeToString(publicKey.getEncoded());
-            log.debug("Public key provided successfully");
-            return ResponseEntity.ok(encodedKey);
-        } catch (Exception e) {
-            log.error("Error getting public key", e);
-            return ResponseEntity.internalServerError().body("Error getting public key");
+    public ResponseEntity<Map<String, String>> getPublicKey() {
+        log.info("Public key request received");
+        
+        String publicKey = jwtUtil.getPublicKeyForValidation();
+        
+        if (publicKey != null) {
+            log.info("Public key provided successfully");
+            return ResponseEntity.ok(Map.of("publicKey", publicKey));
+        } else {
+            log.error("Failed to provide public key");
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to get public key"));
         }
     }
     
     @GetMapping("/health")
     public ResponseEntity<String> health() {
-        log.debug("Health check request received");
+        log.info("Health check request received");
         return ResponseEntity.ok("SSO Service is running");
     }
 } 

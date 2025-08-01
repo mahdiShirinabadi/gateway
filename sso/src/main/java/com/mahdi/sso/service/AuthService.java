@@ -10,6 +10,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -18,8 +20,8 @@ import java.util.Optional;
 public class AuthService {
     
     private final UserRepository userRepository;
-    private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
     
     public LoginResponse login(LoginRequest loginRequest) {
         log.info("Login attempt for user: {}", loginRequest.getUsername());
@@ -29,28 +31,46 @@ public class AuthService {
         if (userOptional.isPresent()) {
             User user = userOptional.get();
             
-            // Check if password matches (in real application, password should be encoded)
             if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 String token = jwtUtil.generateToken(user.getUsername());
-                log.info("Login successful for user: {}", user.getUsername());
+                log.info("Login successful for user: {}", loginRequest.getUsername());
                 return new LoginResponse(token);
             } else {
-                log.warn("Invalid password for user: {}", loginRequest.getUsername());
-                return new LoginResponse("Invalid password", false);
+                log.warn("Login failed for user: {} - Invalid password", loginRequest.getUsername());
+                return new LoginResponse("Invalid credentials", false);
             }
         } else {
-            log.warn("User not found: {}", loginRequest.getUsername());
-            return new LoginResponse("User not found", false);
+            log.warn("Login failed for user: {} - User not found", loginRequest.getUsername());
+            return new LoginResponse("Invalid credentials", false);
         }
     }
     
-    public boolean validateToken(String token, String username) {
-        log.debug("Validating token for user: {}", username);
-        return jwtUtil.validateToken(token, username);
-    }
-    
-    public String extractUsernameFromToken(String token) {
-        log.debug("Extracting username from token");
-        return jwtUtil.extractUsername(token);
+    public Map<String, Object> validateToken(String token) {
+        log.info("Validating token");
+        
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            if (jwtUtil.validateToken(token)) {
+                String username = jwtUtil.extractUsername(token);
+                log.info("Token validation successful for user: {}", username);
+                
+                response.put("valid", true);
+                response.put("message", "Token is valid");
+                response.put("username", username);
+            } else {
+                log.warn("Token validation failed - Invalid token");
+                response.put("valid", false);
+                response.put("message", "Invalid token");
+                response.put("username", null);
+            }
+        } catch (Exception e) {
+            log.error("Error validating token: {}", e.getMessage());
+            response.put("valid", false);
+            response.put("message", "Error validating token: " + e.getMessage());
+            response.put("username", null);
+        }
+        
+        return response;
     }
 } 

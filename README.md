@@ -1,241 +1,377 @@
 # Microservices Authentication & Authorization System
 
-This project demonstrates a complete authentication and authorization flow using multiple microservices.
+## Overview
+This project implements a comprehensive authentication and authorization system using microservices architecture with Spring Boot, JWT tokens, Redis caching, and PostgreSQL databases.
 
-## Architecture Overview
+## Architecture
 
+### Services
+- **SSO Service** (Port 8081): Central authentication service with JWT token generation
+- **Gateway Service** (Port 8080): API Gateway with authentication/authorization filtering
+- **ACL Service** (Port 8083): Access Control List service for role-based permissions
+- **Service1** (Port 8082): Example microservice with automatic permission registration
+- **Redis** (Port 6379): High-performance caching layer
+- **PostgreSQL**: Database for all services
+
+## Public Key Distribution Flow
+
+### New Architecture: Gateway as Public Key Provider
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Client    │───▶│   Gateway   │───▶│   Service1  │    │     SSO     │
-│             │    │   (8080)    │    │   (8082)    │    │   (8081)    │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-                          │                    │                    │
-                          ▼                    ▼                    ▼
-                   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-                   │     ACL     │    │   Service2  │    │ PostgreSQL  │
-                   │   (8083)    │    │   (8084)    │    │   (5432)    │
-                   └─────────────┘    └─────────────┘    └─────────────┘
-```
-
-## Services
-
-1. **Gateway (Port 8080)** - API Gateway with authentication/authorization
-2. **SSO (Port 8081)** - Authentication service with JWT tokens
-3. **Service1 (Port 8082)** - Protected microservice
-4. **ACL (Port 8083)** - Access Control List service
-5. **PostgreSQL** - Database for users and permissions
-
-## Complete Flow
-
-### 1. User Authentication Flow
-
-```
-1. User calls: POST http://localhost:8081/api/auth/login
-   Body: {"username": "testuser", "password": "password123"}
-   
-2. SSO validates credentials and returns JWT token
-   Response: {"token": "eyJ...", "success": true}
+Service1 → Gateway → SSO → Gateway → Service1
 ```
 
-### 2. Service Access Flow
+### Benefits of Gateway Public Key Distribution:
+- ✅ **Centralized Control**: Gateway manages all public key distribution
+- ✅ **Consistent Security**: All services use the same public key source
+- ✅ **Better Performance**: Gateway caches public key, reduces SSO load
+- ✅ **Simplified Architecture**: Service1 doesn't need direct SSO access
 
+### Complete Flow:
+
+#### Step 1: Service1 Requests Public Key
 ```
-1. User calls: GET http://localhost:8080/service1/app1/hello
-   Header: Authorization: Bearer <token>
-   
-2. Gateway checks for Authorization header
-   - If missing: Returns 401 Unauthorized
-   
-3. Gateway validates token with SSO
-   - Calls: POST http://localhost:8081/api/auth/validate
-   
-4. Gateway checks authorization with ACL
-   - Calls: POST http://localhost:8083/api/acl/check
-   
-5. If both auth & authz successful:
-   - Request forwarded to Service1
-   - Headers added: X-Authenticated-User, X-Validated-Token
-   
-6. If authorization fails:
-   - Returns 403 Forbidden
+Service1 → Gateway (/api/gateway/public-key)
+    ↓
+Gateway → SSO (/api/auth/public-key)
+    ↓
+SSO returns public key to Gateway
+    ↓
+Gateway returns public key to Service1
+    ↓
+Service1 caches public key in Redis
 ```
+
+#### Step 2: Signature Verification
+```
+Service1 receives signed token from Gateway
+    ↓
+Service1 gets cached public key from Redis
+    ↓
+Service1 verifies signature using RSA
+    ↓
+If verification fails, Service1 refreshes public key from Gateway
+```
+
+### API Endpoints:
+
+#### Gateway Public Key Endpoints:
+- `GET /api/gateway/public-key`: Get SSO public key through Gateway
+- `GET /api/gateway/public-key/health`: Check public key availability
+
+#### Service1 Test Endpoints:
+- `GET /service1/test/public-key/status`: Check public key status
+- `GET /service1/test/public-key/refresh`: Force refresh public key
+
+### Configuration:
+
+#### Service1 Configuration:
+```properties
+# Gateway Service URL for Public Key
+gateway.service.url=http://localhost:8080/api/gateway/public-key
+```
+
+#### Gateway Configuration:
+```properties
+# SSO Service URL for public key requests
+sso.service.url=http://localhost:8081/api/auth/public-key
+```
+
+### Security Benefits:
+- **Cryptographic Integrity**: Signed tokens prevent tampering
+- **Public Key Verification**: RSA signature verification
+- **Fallback Mechanism**: Hash verification if RSA fails
+- **Automatic Refresh**: Public key refresh on verification failure
+
+### Performance Benefits:
+- **Cached Public Keys**: Redis caching reduces network calls
+- **Single Source**: Gateway as central public key provider
+- **Reduced SSO Load**: Gateway handles public key distribution
+- **Fast Verification**: Local signature verification in Service1
+
+## Redis Caching Strategy
+
+### Overview
+The system implements a sophisticated Redis-based caching strategy to reduce the load on SSO and ACL services while maintaining security through cryptographic signatures.
+
+### Architecture
+```
+Client Request
+    ↓
+Gateway (Port 8080)
+    ↓
+1. Check Redis for cached signed token
+    ↓
+2. If cache miss:
+   - Call SSO to validate token
+   - Call ACL to get ALL permissions
+   - Cache signed token with permissions
+    ↓
+3. Forward request to Service1
+    ↓
+Service1 uses cached token (no validation needed)
+```
+
+### Benefits
+- **Cache Hit**: ~1ms (Redis lookup + signature verification)
+- **Cache Miss**: ~50ms (SSO + ACL calls + caching)
+- **Service1**: ~0ms (no validation needed)
+
+### Security Features
+- **Cryptographic signatures** prevent tampering
+- **Single validation point** reduces attack surface
+- **Consistent security** across all services
+
+### Scalability Benefits
+- **Reduced SSO load** (cached tokens)
+- **Reduced ACL load** (cached permissions)
+- **Better response times** for all services
+
+## Automatic API Discovery
+
+### Overview
+Service1 automatically discovers all API endpoints on startup and registers them with the ACL service, eliminating manual permission configuration.
+
+### Implementation
+- **Automatic Scanning**: Scans all `@RestController` beans on startup
+- **Permission Generation**: Automatically generates permission names from endpoints
+- **ACL Registration**: Registers endpoints with ACL service
+- **Metadata Support**: Includes extra data like Persian names, criticality flags
+
+### Features
+- **Complete URL Discovery**: Full endpoint URLs with HTTP methods
+- **Permission Naming**: Automatic permission name generation
+- **Criticality Detection**: Identifies critical endpoints automatically
+- **Persian Names**: Generates Persian names for endpoints
+- **Extra Data**: Includes category, description, and metadata
+
+## Cryptographic Integrity Check
+
+### Overview
+The system implements cryptographic signing of cached token data to prevent manual insertion by hackers and ensure data integrity.
+
+### Implementation
+- **SignedTokenData**: New model with cryptographic signature
+- **SHA-256 Signing**: Signs token + sorted permissions + timestamps
+- **RSA Verification**: Uses SSO public key for signature verification
+- **Fallback Mechanism**: Hash verification if RSA fails
+
+### Security Features
+- **Tamper Prevention**: Cryptographic signatures prevent manual insertion
+- **Public Key Distribution**: Gateway distributes SSO public keys
+- **Signature Verification**: Service1 verifies signatures before using cached data
+- **Automatic Refresh**: Public key refresh on verification failure
 
 ## Setup Instructions
 
-### 1. Database Setup
+### Prerequisites
+- Java 17+
+- Maven 3.6+
+- PostgreSQL 12+
+- Redis 6+
+- Docker (optional)
 
-Create PostgreSQL databases:
+### Database Setup
 ```sql
+-- Create databases for each service
 CREATE DATABASE sso_db;
 CREATE DATABASE acl_db;
+CREATE DATABASE service1_db;
+CREATE DATABASE gateway_db;
 ```
 
-### 2. Start Services
-
+### Redis Setup
 ```bash
-# Start SSO Service
+# Start Redis server
+redis-server
+
+# Test Redis connection
+redis-cli ping
+```
+
+### Service Startup Order
+1. **PostgreSQL**: Database server
+2. **Redis**: Caching layer
+3. **SSO Service**: Authentication service
+4. **ACL Service**: Authorization service
+5. **Gateway Service**: API Gateway
+6. **Service1**: Example microservice
+
+### Build and Run
+```bash
+# Build all services
+mvn clean install
+
+# Run services (in separate terminals)
 cd sso && mvn spring-boot:run
-
-# Start ACL Service  
 cd acl && mvn spring-boot:run
-
-# Start Service1
-cd service1 && mvn spring-boot:run
-
-# Start Gateway
 cd gateway && mvn spring-boot:run
+cd service1 && mvn spring-boot:run
 ```
 
-## Testing the Flow
+## Testing
 
-### Step 1: Login to Get Token
-
+### Test Public Key Flow
 ```bash
+# Test Gateway public key endpoint
+curl http://localhost:8080/api/gateway/public-key
+
+# Test Service1 public key status
+curl http://localhost:8082/service1/test/public-key/status
+
+# Test public key refresh
+curl http://localhost:8082/service1/test/public-key/refresh
+```
+
+### Test Authentication Flow
+```bash
+# 1. Login to get token
 curl -X POST http://localhost:8081/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}'
+  -d '{"username":"user","password":"password"}'
+
+# 2. Use token to access Service1 through Gateway
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8080/service1/app1/hello
 ```
 
-**Expected Response:**
-```json
-{
-  "token": "eyJhbGciOiJSUzI1NiJ9...",
-  "message": "Login successful",
-  "success": true
-}
-```
-
-### Step 2: Access Service Without Token (Should Fail)
-
+### Test Caching
 ```bash
-curl http://localhost:8080/service1/app1/hello
+# First request (cache miss)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8080/service1/app1/hello
+
+# Second request (cache hit)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8080/service1/app1/hello
 ```
 
-**Expected Response:**
-```
-401 Unauthorized
-```
+## Monitoring
 
-### Step 3: Access Service With Token (Should Succeed)
-
+### Redis Monitoring
 ```bash
-curl http://localhost:8080/service1/app1/hello \
-  -H "Authorization: Bearer <token-from-step-1>"
+# Check Redis keys
+redis-cli keys "*"
+
+# Check token cache
+redis-cli keys "token:*"
+
+# Check public key cache
+redis-cli keys "public_key:*"
 ```
 
-**Expected Response:**
-```
-Hello From Service 1 - Authenticated User: testuser
-```
+### Service Logs
+- **Gateway**: Look for "GATEWAY CACHE HIT/MISS" messages
+- **Service1**: Look for "SIGNED CACHE HIT/MISS" messages
+- **SSO**: Look for token validation requests
+- **ACL**: Look for permission check requests
 
-### Step 4: Test Unauthorized Access
+## Security Considerations
 
-Try accessing a resource that the user doesn't have permission for:
+### Defense in Depth
+- **Gateway Level**: Primary authentication/authorization
+- **Service Level**: Secondary validation with cached data
+- **Cryptographic Integrity**: Signed tokens prevent tampering
+- **Public Key Verification**: RSA signature verification
 
+### Cache Security
+- **Signed Data**: All cached tokens are cryptographically signed
+- **Signature Verification**: Service1 verifies signatures before using cached data
+- **Automatic Refresh**: Public keys refresh on verification failure
+- **Tamper Prevention**: Cryptographic signatures prevent manual insertion
+
+### Network Security
+- **HTTPS**: All inter-service communication should use HTTPS
+- **Firewall**: Restrict access to service ports
+- **Authentication**: All services require proper authentication
+- **Authorization**: Role-based access control on all endpoints
+
+## Performance Optimization
+
+### Caching Strategy
+- **Token Caching**: 30-minute TTL for signed tokens
+- **Public Key Caching**: 24-hour TTL for public keys
+- **Permission Caching**: All permissions cached with tokens
+- **Signature Verification**: Local verification in Service1
+
+### Load Distribution
+- **Gateway**: Handles all initial authentication/authorization
+- **Service1**: Uses cached data for fast responses
+- **SSO**: Reduced load through caching
+- **ACL**: Reduced load through caching
+
+### Response Times
+- **Cache Hit**: ~1ms (Redis lookup + signature verification)
+- **Cache Miss**: ~50ms (SSO + ACL calls + caching)
+- **Service1**: ~0ms (no validation needed)
+- **Overall**: 90%+ cache hit rate expected
+
+## Troubleshooting
+
+### Common Issues
+
+#### Public Key Issues
 ```bash
-curl http://localhost:8080/service1/app1/admin \
-  -H "Authorization: Bearer <token-from-step-1>"
+# Check Gateway public key endpoint
+curl http://localhost:8080/api/gateway/public-key
+
+# Check Service1 public key status
+curl http://localhost:8082/service1/test/public-key/status
+
+# Force refresh public key
+curl http://localhost:8082/service1/test/public-key/refresh
 ```
 
-**Expected Response:**
+#### Cache Issues
+```bash
+# Check Redis connection
+redis-cli ping
+
+# Check cached tokens
+redis-cli keys "token:*"
+
+# Clear all caches
+redis-cli flushall
 ```
-403 Forbidden
+
+#### Service Communication
+```bash
+# Check SSO health
+curl http://localhost:8081/api/auth/health
+
+# Check ACL health
+curl http://localhost:8083/api/acl/health
+
+# Check Gateway health
+curl http://localhost:8080/api/gateway/public-key/health
 ```
 
-## API Endpoints
+### Log Analysis
+- **Gateway Logs**: Look for authentication/authorization messages
+- **Service1 Logs**: Look for signature verification messages
+- **SSO Logs**: Look for token validation requests
+- **ACL Logs**: Look for permission check requests
 
-### SSO Service (Port 8081)
+## Future Enhancements
 
-- `POST /api/auth/login` - User login
-- `POST /api/auth/validate` - Token validation
-- `GET /api/auth/public-key` - Get RSA public key
-- `GET /api/auth/health` - Health check
+### Planned Features
+- **Key Rotation**: Automatic RSA key rotation
+- **Load Balancing**: Multiple SSO/ACL instances
+- **Metrics**: Prometheus metrics integration
+- **Tracing**: Distributed tracing with Jaeger
+- **Circuit Breaker**: Resilience patterns
+- **Rate Limiting**: API rate limiting
+- **Audit Logging**: Comprehensive audit trails
 
-### ACL Service (Port 8083)
+### Security Enhancements
+- **HTTPS**: TLS encryption for all communications
+- **Certificate Management**: Automatic certificate rotation
+- **Secrets Management**: External secrets management
+- **Network Policies**: Kubernetes network policies
+- **Pod Security**: Pod security standards
 
-- `POST /api/acl/check` - Check permissions
-- `POST /api/acl/add` - Add permissions
-- `GET /api/acl/health` - Health check
-
-### Gateway (Port 8080)
-
-- `GET /service1/**` - Route to Service1 (requires authentication)
-
-### Service1 (Port 8082)
-
-- `GET /app1/hello` - Public endpoint
-- `GET /app1/admin` - Admin endpoint
-
-## Default Users & Permissions
-
-### Users
-- **testuser** / **password123** - Regular user
-- **admin** / **admin123** - Admin user
-
-### Permissions
-- **testuser** can access `/service1/app1/hello`
-- **admin** can access `/service1/**` (all service1 endpoints)
-
-## Security Features
-
-1. **JWT Authentication** - RSA-signed tokens
-2. **Role-based Authorization** - ACL-based permissions
-3. **Gateway-level Security** - All requests go through gateway
-4. **Token Validation** - Real-time token validation with SSO
-5. **Permission Checking** - Real-time permission checking with ACL
-
-## Error Responses
-
-### 401 Unauthorized
-- Missing Authorization header
-- Invalid token
-- Token validation failure
-
-### 403 Forbidden
-- Valid token but insufficient permissions
-- User not authorized for requested resource
-
-## Monitoring & Logging
-
-All services include comprehensive logging:
-- Authentication attempts
-- Authorization checks
-- Request routing
-- Error conditions
-
-## Configuration
-
-### Gateway Configuration
-- Routes all `/service1/**` requests to Service1
-- Applies AuthenticationFilter to all service1 routes
-- Validates tokens with SSO service
-- Checks permissions with ACL service
-
-### SSO Configuration
-- RSA 2048-bit key generation
-- JWT token expiration: 24 hours
-- BCrypt password encryption
-
-### ACL Configuration
-- PostgreSQL-based permission storage
-- Real-time permission checking
-- Support for resource-based permissions
-
-## Development Notes
-
-### Adding New Services
-1. Create service with unique port
-2. Add route configuration in gateway
-3. Add permissions in ACL service
-4. Test authentication/authorization flow
-
-### Adding New Permissions
-1. Use ACL service to add permissions
-2. Test with appropriate user tokens
-3. Verify authorization works correctly
-
-### Troubleshooting
-1. Check service logs for authentication/authorization issues
-2. Verify database connections
-3. Check token validity with SSO service
-4. Verify permissions with ACL service 
+### Performance Enhancements
+- **Connection Pooling**: Optimized database connections
+- **Query Optimization**: Database query optimization
+- **CDN Integration**: Content delivery network
+- **Load Testing**: Comprehensive load testing
+- **Auto Scaling**: Kubernetes auto-scaling 

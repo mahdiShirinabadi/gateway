@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/acl")
@@ -44,6 +45,26 @@ public class AclController {
         log.info("Getting permissions for user: {}", username);
         List<Permission> permissions = aclService.getUserPermissions(username);
         return ResponseEntity.ok(permissions);
+    }
+    
+    @GetMapping("/user-permissions")
+    public ResponseEntity<Map<String, Object>> getUserPermissionsAsStrings(@RequestParam String username) {
+        log.info("Getting permissions as strings for user: {}", username);
+        List<Permission> permissions = aclService.getUserPermissions(username);
+        
+        // Convert Permission objects to permission names
+        List<String> permissionNames = permissions.stream()
+                .map(Permission::getName)
+                .collect(Collectors.toList());
+        
+        Map<String, Object> response = Map.of(
+                "username", username,
+                "permissions", permissionNames
+        );
+        
+        log.info("Retrieved {} permissions for user: {}", permissionNames.size(), username);
+        
+        return ResponseEntity.ok(response);
     }
     
     @PostMapping("/roles")

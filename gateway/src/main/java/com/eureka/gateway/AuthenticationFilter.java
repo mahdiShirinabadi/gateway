@@ -1,5 +1,7 @@
 package com.eureka.gateway;
 
+import com.eureka.gateway.model.TokenData;
+import com.eureka.gateway.service.TokenCacheService;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
@@ -8,82 +10,139 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+import java.util.Map;
+
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
-
     private final WebClient webClient;
+    private final TokenCacheService tokenCacheService;
 
-    public AuthenticationFilter(WebClient webClient) {
+    public AuthenticationFilter(WebClient webClient, TokenCacheService tokenCacheService) {
         super(Config.class);
         this.webClient = webClient;
+        this.tokenCacheService = tokenCacheService;
     }
 
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
-            
-            // Check if the request has an Authorization header
             String authHeader = request.getHeaders().getFirst("Authorization");
             
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                System.out.println("Request without Authorization header: " + request.getPath());
+                System.out.println("No valid Authorization header found");
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }
             
-            // Extract token from Authorization header
-            String token = authHeader.substring(7); // Remove "Bearer " prefix
-            
-            // Validate token with SSO service
+            String token = authHeader.substring(7);
+
+            // First, check Redis cache for signed token
+            TokenData cachedTokenData = tokenCacheService.getCachedToken(token);
+            if (cachedTokenData != null) {
+                // Use cached data - no need to call SSO or ACL
+                String permissionName = getPermissionNameForPath(request.getPath().value(), request.getMethod().name());
+                if (cachedTokenData.hasPermission(permissionName)) {
+                    ServerHttpRequest modifiedRequest = request.mutate()
+                            .header("X-Validated-Token", token)
+                            .header("X-Authenticated-User", cachedTokenData.getUsername())
+                            .header("X-Cache-Hit", "true")
+                            .build();
+                    System.out.println("GATEWAY CACHE HIT - Request authorized for user: " + cachedTokenData.getUsername() + " on path: " + request.getPath());
+                    return chain.filter(exchange.mutate().request(modifiedRequest).build());
+                } else {
+                    System.out.println("GATEWAY CACHE HIT - Authorization failed for user: " + cachedTokenData.getUsername() + " on path: " + request.getPath());
+                    exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                    return exchange.getResponse().setComplete();
+                }
+            }
+
+            // Cache miss - validate with SSO and ACL, then cache the result
             return validateTokenWithSSO(token)
                     .flatMap(tokenValidation -> {
                         if (tokenValidation.isValid()) {
-                            // Token is valid, now check authorization with ACL
                             String permissionName = getPermissionNameForPath(request.getPath().value(), request.getMethod().name());
                             return checkAuthorizationWithACL(tokenValidation.getUsername(), permissionName)
                                     .flatMap(authorized -> {
                                         if (authorized) {
-                                            // Both authentication and authorization successful
-                                            ServerHttpRequest modifiedRequest = request.mutate()
-                                                    .header("X-Validated-Token", token)
-                                                    .header("X-Authenticated-User", tokenValidation.getUsername())
-                                                    .build();
-                                            
-                                            System.out.println("Request authorized for user: " + tokenValidation.getUsername() + " on path: " + request.getPath());
-                                            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+                                            // Get all permissions for the user and cache signed token
+                                            return getAllPermissionsAndCacheToken(token, tokenValidation.getUsername())
+                                                    .flatMap(permissions -> {
+                                                        // Cache the signed token with all permissions
+                                                        tokenCacheService.cacheToken(token, tokenValidation.getUsername(), permissions);
+                                                        
+                                                        ServerHttpRequest modifiedRequest = request.mutate()
+                                                                .header("X-Validated-Token", token)
+                                                                .header("X-Authenticated-User", tokenValidation.getUsername())
+                                                                .header("X-Cache-Hit", "false")
+                                                                .build();
+                                                        System.out.println("GATEWAY CACHE MISS - Request authorized for user: " + tokenValidation.getUsername() + " on path: " + request.getPath() + " - Token cached with " + permissions.size() + " permissions");
+                                                        return chain.filter(exchange.mutate().request(modifiedRequest).build());
+                                                    });
                                         } else {
-                                            // Authorization failed
-                                            System.out.println("Authorization failed for user: " + tokenValidation.getUsername() + " on path: " + request.getPath());
+                                            System.out.println("GATEWAY CACHE MISS - Authorization failed for user: " + tokenValidation.getUsername() + " on path: " + request.getPath());
                                             exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                                             return exchange.getResponse().setComplete();
                                         }
                                     });
                         } else {
-                            // Token is invalid, return 401
-                            System.out.println("Invalid token for request: " + request.getPath());
+                            System.out.println("GATEWAY CACHE MISS - Invalid token for request: " + request.getPath());
                             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                             return exchange.getResponse().setComplete();
                         }
                     })
                     .onErrorResume(throwable -> {
-                        System.out.println("Error during authentication/authorization: " + throwable.getMessage());
-                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        System.out.println("Error during authentication: " + throwable.getMessage());
+                        exchange.getResponse().setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
                         return exchange.getResponse().setComplete();
                     });
         };
     }
 
-    private String getPermissionNameForPath(String path, String method) {
-        // Map paths to permission names
-        if (path.startsWith("/service1/app1/hello")) {
-            return "SERVICE1_HELLO_ACCESS";
-        } else if (path.startsWith("/service1/app1/admin")) {
-            return "SERVICE1_ADMIN_ACCESS";
-        } else if (path.startsWith("/service1/")) {
-            return "SERVICE1_ALL_ACCESS";
+    private Mono<List<String>> getAllPermissionsAndCacheToken(String token, String username) {
+        try {
+            // Call ACL service to get all permissions for the user
+            String aclPermissionsUrl = "http://localhost:8083/api/acl/user-permissions?username=" + username;
+            
+            return webClient.get()
+                    .uri(aclPermissionsUrl)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .map(response -> {
+                        if (response != null && response.containsKey("permissions")) {
+                            @SuppressWarnings("unchecked")
+                            List<Object> permissionsObj = (List<Object>) response.get("permissions");
+                            List<String> permissions = permissionsObj.stream()
+                                    .map(obj -> obj.toString())
+                                    .toList();
+                            System.out.println("Retrieved " + permissions.size() + " permissions for user: " + username);
+                            return permissions;
+                        } else {
+                            System.out.println("No permissions found for user: " + username);
+                            return List.<String>of();
+                        }
+                    })
+                    .onErrorReturn(List.<String>of());
+                    
+        } catch (Exception e) {
+            System.out.println("Error getting permissions for user " + username + ": " + e.getMessage());
+            return Mono.just(List.<String>of());
         }
-        return "DEFAULT_PERMISSION";
+    }
+
+    private String getPermissionNameForPath(String path, String method) {
+        // Convert path to permission name
+        String permission = path
+                .replaceAll("/", "_")
+                .replaceAll("-", "_")
+                .toUpperCase();
+        
+        if (permission.startsWith("_")) {
+            permission = permission.substring(1);
+        }
+        
+        return "SERVICE1_" + method + "_" + permission;
     }
 
     private Mono<TokenValidationResponse> validateTokenWithSSO(String token) {
@@ -93,7 +152,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 .bodyValue(new TokenValidationRequest(token))
                 .retrieve()
                 .bodyToMono(TokenValidationResponse.class)
-                .onErrorReturn(new TokenValidationResponse(false, "Token validation failed", null));
+                .onErrorReturn(new TokenValidationResponse(false, null));
     }
 
     private Mono<Boolean> checkAuthorizationWithACL(String username, String permissionName) {
@@ -103,23 +162,14 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 .bodyValue(new AclRequest(username, permissionName))
                 .retrieve()
                 .bodyToMono(AclResponse.class)
-                .map(AclResponse::isAllowed)
+                .map(AclResponse::isAuthorized)
                 .onErrorReturn(false);
     }
 
     public static class Config {
-        private String name;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
+        // Configuration properties if needed
     }
 
-    // Request/Response classes for SSO validation
     public static class TokenValidationRequest {
         private String token;
 
@@ -138,14 +188,10 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     public static class TokenValidationResponse {
         private boolean valid;
-        private String message;
         private String username;
 
-        public TokenValidationResponse() {}
-
-        public TokenValidationResponse(boolean valid, String message, String username) {
+        public TokenValidationResponse(boolean valid, String username) {
             this.valid = valid;
-            this.message = message;
             this.username = username;
         }
 
@@ -157,14 +203,6 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             this.valid = valid;
         }
 
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
         public String getUsername() {
             return username;
         }
@@ -174,7 +212,6 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         }
     }
 
-    // Request/Response classes for ACL authorization
     public static class AclRequest {
         private String username;
         private String permissionName;
@@ -202,32 +239,18 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     }
 
     public static class AclResponse {
-        private String username;
-        private String permission;
-        private boolean allowed;
+        private boolean authorized;
 
-        public String getUsername() {
-            return username;
+        public AclResponse(boolean authorized) {
+            this.authorized = authorized;
         }
 
-        public void setUsername(String username) {
-            this.username = username;
+        public boolean isAuthorized() {
+            return authorized;
         }
 
-        public String getPermission() {
-            return permission;
-        }
-
-        public void setPermission(String permission) {
-            this.permission = permission;
-        }
-
-        public boolean isAllowed() {
-            return allowed;
-        }
-
-        public void setAllowed(boolean allowed) {
-            this.allowed = allowed;
+        public void setAuthorized(boolean authorized) {
+            this.authorized = authorized;
         }
     }
 } 

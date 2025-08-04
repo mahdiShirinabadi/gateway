@@ -19,7 +19,7 @@ public class AclService {
     private final RolePermissionRepository rolePermissionRepository;
     private final UserRepository userRepository;
     
-    public boolean hasPermission(String username, String permissionName) {
+    public boolean hasPermission(String username, String permissionName, String projectName) {
         log.info("Checking permission for user: {}, permission: {}", username, permissionName);
         
         // Find user
@@ -33,7 +33,7 @@ public class AclService {
         Role userRole = user.getRole();
         
         // Find permission
-        Optional<Permission> permissionOpt = permissionRepository.findByName(permissionName);
+        Optional<Permission> permissionOpt = permissionRepository.findByNameAndProjectName(permissionName, projectName);
         if (permissionOpt.isEmpty()) {
             log.warn("Permission not found: {}", permissionName);
             return false;

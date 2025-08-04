@@ -2,7 +2,9 @@ package com.eureka.acl.controller;
 
 import com.eureka.acl.entity.Permission;
 import com.eureka.acl.service.AclService;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +28,8 @@ public class AclController {
         
         boolean hasPermission = aclService.hasPermission(
                 request.getUsername(), 
-                request.getPermissionName()
+                request.getPermissionName(),
+                request.getProjectName()
         );
         
         Map<String, Object> response = Map.of(
@@ -106,62 +109,40 @@ public class AclController {
     }
     
     // Request classes
+    @Getter
+    @Setter
     public static class PermissionRequest {
         private String username;
+        private String projectName;
         private String permissionName;
-        
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-        
-        public String getPermissionName() { return permissionName; }
-        public void setPermissionName(String permissionName) { this.permissionName = permissionName; }
     }
-    
+
+    @Getter
+    @Setter
     public static class RoleRequest {
         private String name;
-        
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
     }
-    
+
+    @Setter
+    @Getter
     public static class PermissionCreateRequest {
         private String name;
         private String projectName;
         private boolean critical;
         private String persianName;
-        
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getProjectName() { return projectName; }
-        public void setProjectName(String projectName) { this.projectName = projectName; }
-        
-        public boolean isCritical() { return critical; }
-        public void setCritical(boolean critical) { this.critical = critical; }
-        
-        public String getPersianName() { return persianName; }
-        public void setPersianName(String persianName) { this.persianName = persianName; }
     }
-    
+
+    @Getter
+    @Setter
     public static class PermissionAssignmentRequest {
         private String roleName;
         private String permissionName;
-        
-        public String getRoleName() { return roleName; }
-        public void setRoleName(String roleName) { this.roleName = roleName; }
-        
-        public String getPermissionName() { return permissionName; }
-        public void setPermissionName(String permissionName) { this.permissionName = permissionName; }
     }
-    
+
+    @Getter
+    @Setter
     public static class UserRoleAssignmentRequest {
         private String username;
         private String roleName;
-        
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-        
-        public String getRoleName() { return roleName; }
-        public void setRoleName(String roleName) { this.roleName = roleName; }
     }
 } 

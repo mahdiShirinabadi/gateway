@@ -2,7 +2,9 @@ package com.eureka.acl.service;
 
 import com.eureka.acl.entity.*;
 import com.eureka.acl.repository.*;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -107,7 +109,9 @@ public class ProjectRegistrationService {
         log.info("Getting all projects");
         return projectRepository.findAll();
     }
-    
+
+    @Getter
+    @Setter
     public static class ApiRegistration {
         private String apiPath;
         private String httpMethod;
@@ -116,27 +120,5 @@ public class ProjectRegistrationService {
         private boolean isPublic;
         private boolean isCritical;
         private String persianName;
-        
-        // Getters and Setters
-        public String getApiPath() { return apiPath; }
-        public void setApiPath(String apiPath) { this.apiPath = apiPath; }
-        
-        public String getHttpMethod() { return httpMethod; }
-        public void setHttpMethod(String httpMethod) { this.httpMethod = httpMethod; }
-        
-        public String getPermissionName() { return permissionName; }
-        public void setPermissionName(String permissionName) { this.permissionName = permissionName; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public boolean isPublic() { return isPublic; }
-        public void setPublic(boolean isPublic) { this.isPublic = isPublic; }
-        
-        public boolean isCritical() { return isCritical; }
-        public void setCritical(boolean isCritical) { this.isCritical = isCritical; }
-        
-        public String getPersianName() { return persianName; }
-        public void setPersianName(String persianName) { this.persianName = persianName; }
     }
 } 

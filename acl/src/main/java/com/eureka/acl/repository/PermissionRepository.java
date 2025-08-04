@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface PermissionRepository extends JpaRepository<Permission, Long> {
     Optional<Permission> findByName(String name);
+    Optional<Permission> findByNameAndProjectName(String name, String projectName);
     List<Permission> findByProjectName(String projectName);
     
     @Query("SELECT p FROM Permission p JOIN RolePermission rp ON p.id = rp.permission.id JOIN Role r ON rp.role.id = r.id JOIN User u ON u.role.id = r.id WHERE u.username = :username")

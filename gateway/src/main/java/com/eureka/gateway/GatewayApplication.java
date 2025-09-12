@@ -25,34 +25,7 @@ public class GatewayApplication {
 		SpringApplication.run(GatewayApplication.class, args);
 	}
 
-	@Bean
-	public RouteLocator customRouteLocator(RouteLocatorBuilder builder, AuthenticationFilter authenticationFilter) {
-		return builder.routes()
-				.route("service1", r -> r
-						.path("/app1/**")
-						.filters(f -> f
-								.rewritePath("/app1/(?<segment>.*)", "/${segment}")
-								.addRequestHeader("X-Gateway-Source", "api-gateway")
-								.filter(authenticationFilter.apply(new AuthenticationFilter.Config()))
-								.circuitBreaker(config -> config
-										.setName("service1-circuit-breaker")
-										.setFallbackUri("forward:/fallback")))
-						.uri("lb://SERVICE1"))
-				.route("service2", r -> r
-						.path("/app2/**")
-						.filters(f -> f
-								.rewritePath("/app2/(?<segment>.*)", "/${segment}")
-								.addRequestHeader("X-Gateway-Source", "api-gateway")
-								.filter(authenticationFilter.apply(new AuthenticationFilter.Config()))
-								.circuitBreaker(config -> config
-										.setName("service2-circuit-breaker")
-										.setFallbackUri("forward:/fallback")))
-						.uri("http://SERVICE2"))
-				.route("health", r -> r
-						.path("/health/**")
-						.uri("http://localhost:8080"))
-				.build();
-	}
+	// RouteLocator moved to GatewayRoutesConfig.java for better organization
 
 	@Bean
 	public GlobalFilter customGlobalFilter() {

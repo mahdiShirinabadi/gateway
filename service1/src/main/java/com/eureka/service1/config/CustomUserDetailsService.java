@@ -25,7 +25,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final WebClient webClient;
     private final TokenCacheService tokenCacheService;
     
-    @Value("${acl.service.url:http://localhost:8083/api/acl/check}")
+    @Value("${acl.service.url}")
     private String aclServiceUrl;
     
     @Override

@@ -21,7 +21,7 @@ public class AutomaticPermissionRegistrationService {
     private final WebClient webClient;
     private final ApplicationContext applicationContext;
     
-    @Value("${acl.service.url:http://localhost:8083/api/acl/check}")
+    @Value("${acl.service.url}")
     private String aclServiceUrl;
     
     @Value("${spring.application.name:service1}")

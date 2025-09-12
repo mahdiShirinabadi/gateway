@@ -1,5 +1,6 @@
 package com.eureka.service1.config;
 
+import lombok.extern.log4j.Log4j2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,16 +11,15 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 
 @Component
+@Log4j2
 public class JwtTokenValidator {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtTokenValidator.class);
-    
     private final WebClient webClient;
     
-    @Value("${sso.service.url:http://localhost:8081/api/auth/validate}")
+    @Value("${sso.service.url}")
     private String ssoValidationUrl;
     
-    @Value("${acl.service.url:http://localhost:8083/api/acl/check}")
+    @Value("${acl.service.url}")
     private String aclCheckUrl;
 
     public JwtTokenValidator(WebClient webClient) {

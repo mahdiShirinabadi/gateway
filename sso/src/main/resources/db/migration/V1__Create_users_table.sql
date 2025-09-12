@@ -17,5 +17,5 @@ CREATE INDEX idx_users_username ON users(username);
 -- Insert initial test users
 INSERT INTO users (username, password, create_by) VALUES 
 ('testuser', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVEFDa', 'system'), -- password123
-('admin', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOfgqwAGmQvKqVfHqJqHqHqHqHqHqHqHq', 'system'), -- admin123
+('admin', '$2a$10$cW.gz0L9hLfdddTaVq.a/OHScIarPylbywIfjBfCEHQ7yJAeS.x6K', 'system'), -- admin
 ('superadmin', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOfgqwAGmQvKqVfHqJqHqHqHqHqHqHqHq', 'system'); -- admin123 

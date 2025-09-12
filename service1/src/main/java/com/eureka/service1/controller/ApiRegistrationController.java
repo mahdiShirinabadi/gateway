@@ -46,7 +46,7 @@ public class ApiRegistrationController {
     }
     
     private void registerProject() {
-        String aclUrl = "http://localhost:8083/api/project-registration/register";
+        String aclUrl = "http://localhost:8080/acl/api/project-registration/register";
         
         ProjectRegistrationRequest request = new ProjectRegistrationRequest();
         request.setName("service1");
@@ -63,7 +63,7 @@ public class ApiRegistrationController {
     }
     
     private void registerApis() {
-        String aclUrl = "http://localhost:8083/api/project-registration/service1/apis";
+        String aclUrl = "http://localhost:8080/acl/api/project-registration/service1/apis";
         
         List<ApiRegistration> apis = Arrays.asList(
             new ApiRegistration(

@@ -3,6 +3,13 @@ package com.eureka.acl.controller;
 import com.eureka.acl.entity.Project;
 import com.eureka.acl.entity.ProjectApi;
 import com.eureka.acl.service.ProjectRegistrationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.ResponseEntity;
@@ -14,12 +21,29 @@ import java.util.List;
 @RequestMapping("/api/project-registration")
 @RequiredArgsConstructor
 @Log4j2
+@Tag(name = "Project Registration", description = "ثبت و مدیریت پروژه‌ها و API های آنها")
 public class ProjectRegistrationController {
     
     private final ProjectRegistrationService projectRegistrationService;
     
+    @Operation(
+            summary = "ثبت پروژه جدید",
+            description = "یک پروژه جدید را در سیستم ثبت می‌کند"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "پروژه با موفقیت ثبت شد",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Project.class)
+                    )
+            )
+    })
     @PostMapping("/register")
-    public ResponseEntity<Project> registerProject(@RequestBody ProjectRegistrationRequest request) {
+    public ResponseEntity<Project> registerProject(
+            @Parameter(description = "اطلاعات پروژه جدید", required = true)
+            @RequestBody ProjectRegistrationRequest request) {
         log.info("Project registration request: {}", request.getName());
         
         Project project = projectRegistrationService.registerProject(
@@ -32,9 +56,16 @@ public class ProjectRegistrationController {
         return ResponseEntity.ok(project);
     }
     
+    @Operation(
+            summary = "ثبت API های پروژه",
+            description = "لیستی از API های یک پروژه را ثبت می‌کند"
+    )
     @PostMapping("/{projectName}/apis")
-    public ResponseEntity<String> registerProjectApis(@PathVariable String projectName, 
-                                                    @RequestBody List<ProjectRegistrationService.ApiRegistration> apis) {
+    public ResponseEntity<String> registerProjectApis(
+            @Parameter(description = "نام پروژه", required = true, example = "user-service")
+            @PathVariable String projectName, 
+            @Parameter(description = "لیست API های پروژه", required = true)
+            @RequestBody List<ProjectRegistrationService.ApiRegistration> apis) {
         log.info("API registration request for project: {} with {} APIs", projectName, apis.size());
         
         projectRegistrationService.registerProjectApis(projectName, apis);
@@ -42,8 +73,14 @@ public class ProjectRegistrationController {
         return ResponseEntity.ok("APIs registered successfully for project: " + projectName);
     }
     
+    @Operation(
+            summary = "دریافت API های پروژه",
+            description = "لیست تمام API های یک پروژه مشخص را برمی‌گرداند"
+    )
     @GetMapping("/{projectName}/apis")
-    public ResponseEntity<List<ProjectApi>> getProjectApis(@PathVariable String projectName) {
+    public ResponseEntity<List<ProjectApi>> getProjectApis(
+            @Parameter(description = "نام پروژه", required = true, example = "user-service")
+            @PathVariable String projectName) {
         log.info("Getting APIs for project: {}", projectName);
         
         List<ProjectApi> apis = projectRegistrationService.getProjectApis(projectName);
@@ -51,6 +88,10 @@ public class ProjectRegistrationController {
         return ResponseEntity.ok(apis);
     }
     
+    @Operation(
+            summary = "دریافت تمام پروژه‌ها",
+            description = "لیست تمام پروژه‌های ثبت شده در سیستم را برمی‌گرداند"
+    )
     @GetMapping("/projects")
     public ResponseEntity<List<Project>> getAllProjects() {
         log.info("Getting all projects");
@@ -60,6 +101,10 @@ public class ProjectRegistrationController {
         return ResponseEntity.ok(projects);
     }
     
+    @Operation(
+            summary = "بررسی وضعیت سرویس",
+            description = "بررسی می‌کند که سرویس ثبت پروژه در حال اجرا است یا خیر"
+    )
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Project Registration Service is running");

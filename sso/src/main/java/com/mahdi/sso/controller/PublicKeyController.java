@@ -25,7 +25,7 @@ public class PublicKeyController {
      * Expose SSO public key for signature verification
      * This endpoint is called by Service1 to get the public key for verifying signatures
      */
-    @GetMapping("/public-key")
+    @GetMapping("/public-key/get")
     public ResponseEntity<Map<String, Object>> getPublicKey() {
         try {
             log.info("Public key requested by Service1");

@@ -1,5 +1,6 @@
 package com.eureka.service1.controller;
 
+import lombok.extern.log4j.Log4j2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -7,11 +8,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
-@Log4
+@Log4j2
 @RestController
 @RequestMapping("/app1")
 public class App1Controller {
@@ -19,11 +22,19 @@ public class App1Controller {
     @GetMapping("/hello")
     @PreAuthorize("hasAuthority('SERVICE1_HELLO_ACCESS')")
     public ResponseEntity<String> hello(@RequestHeader(value = "X-Authenticated-User", required = false) String gatewayUser,
-                                      @RequestHeader(value = "X-Validated-Token", required = false) String gatewayToken) {
+                                      @RequestHeader(value = "X-Validated-Token", required = false) String gatewayToken,
+                                      @RequestHeader(value = "X-Gateway-Source", required = false) String gatewaySource,
+                                      @RequestHeader(value = "X-Request-Timestamp", required = false) String requestTimestamp,
+                                      @RequestHeader(value = "X-Cache-Hit", required = false) String cacheHit,
+                                      @RequestHeader(value = "Authorization", required = false) String authorization,
+                                      HttpServletRequest request) {
         
         // Get authenticated user from Spring Security context (for direct access)
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String directUser = authentication != null ? authentication.getName() : "anonymous";
+        
+        // Log all Gateway headers for this specific endpoint
+        logGatewayHeadersForEndpoint(request, "hello");
         
         log.info("Hello endpoint called - Gateway User: {}, Direct User: {}", gatewayUser, directUser);
         
@@ -137,6 +148,39 @@ public class App1Controller {
         return ResponseEntity.ok(response.toString());
     }
     
+    @GetMapping("/headers")
+    @PreAuthorize("hasAuthority('SERVICE1_ALL_ACCESS')")
+    public ResponseEntity<Map<String, Object>> showAllHeaders(HttpServletRequest request) {
+        logGatewayHeadersForEndpoint(request, "headers");
+        
+        Map<String, Object> response = new HashMap<>();
+        Map<String, String> allHeaders = new HashMap<>();
+        Map<String, String> gatewayHeaders = new HashMap<>();
+        
+        // Get all headers
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            String headerValue = request.getHeader(headerName);
+            allHeaders.put(headerName, headerValue);
+            
+            if (isGatewayHeader(headerName)) {
+                gatewayHeaders.put(headerName, maskSensitiveData(headerName, headerValue));
+            }
+        }
+        
+        response.put("endpoint", "/app1/headers");
+        response.put("requestMethod", request.getMethod());
+        response.put("requestURI", request.getRequestURI());
+        response.put("remoteAddress", request.getRemoteAddr());
+        response.put("totalHeaders", allHeaders.size());
+        response.put("gatewayHeaders", gatewayHeaders);
+        response.put("allHeaders", allHeaders);
+        response.put("message", "تمام header های دریافتی از Gateway");
+        
+        return ResponseEntity.ok(response);
+    }
+    
     @GetMapping("/super-admin")
     @PreAuthorize("hasAuthority('SERVICE1_SUPER_ADMIN_ACCESS')")
     public ResponseEntity<String> superAdmin() {
@@ -220,5 +264,101 @@ public class App1Controller {
         response.put("estimatedCompletion", System.currentTimeMillis() + 30000);
         
         return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/log-test")
+    @PreAuthorize("hasAuthority('SERVICE1_ALL_ACCESS')")
+    public ResponseEntity<Map<String, Object>> testLogging(HttpServletRequest request) {
+        logGatewayHeadersForEndpoint(request, "log-test");
+        
+        // Test different log levels
+        log.trace("This is a TRACE level message - should not appear in console");
+        log.debug("This is a DEBUG level message - should not appear in console");
+        log.info("This is an INFO level message - should appear in console and files");
+        log.warn("This is a WARN level message - should appear in console and files");
+        log.error("This is an ERROR level message - should appear in console, files, and error file");
+        
+        // Test structured logging
+        log.info("Structured logging test - User: {}, Action: {}, Timestamp: {}", 
+                "test_user", "log_test", System.currentTimeMillis());
+        
+        // Test exception logging
+        try {
+            throw new RuntimeException("Test exception for logging");
+        } catch (Exception e) {
+            log.error("Test exception caught and logged", e);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Log4j2 logging test completed");
+        response.put("timestamp", System.currentTimeMillis());
+        response.put("logLevels", Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
+        response.put("logFiles", Arrays.asList(
+            "logs/service1/service1.log",
+            "logs/service1/gateway-headers.log", 
+            "logs/service1/errors.log"
+        ));
+        response.put("note", "Check console output and log files for test results");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Helper method to log all Gateway headers for a specific endpoint
+     */
+    private void logGatewayHeadersForEndpoint(HttpServletRequest request, String endpointName) {
+        log.info("=== GATEWAY HEADERS FOR ENDPOINT: {} ===", endpointName);
+        log.info("Request URI: {}", request.getRequestURI());
+        log.info("Request Method: {}", request.getMethod());
+        log.info("Remote Address: {}", request.getRemoteAddr());
+        
+        // Log all headers
+        Enumeration<String> headerNames = request.getHeaderNames();
+        Map<String, String> gatewayHeaders = new HashMap<>();
+        
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            String headerValue = request.getHeader(headerName);
+            
+            // Check if it's a Gateway-related header
+            if (isGatewayHeader(headerName)) {
+                gatewayHeaders.put(headerName, headerValue);
+            }
+        }
+        
+        // Log Gateway headers
+        if (!gatewayHeaders.isEmpty()) {
+            log.info("Gateway Headers Count: {}", gatewayHeaders.size());
+            gatewayHeaders.forEach((name, value) -> {
+                String logValue = maskSensitiveData(name, value);
+                log.info("Gateway Header - {}: {}", name, logValue);
+            });
+        } else {
+            log.info("No Gateway headers found");
+        }
+        
+        log.info("=== END GATEWAY HEADERS FOR ENDPOINT: {} ===", endpointName);
+    }
+    
+    private boolean isGatewayHeader(String headerName) {
+        return headerName.startsWith("X-") || 
+               headerName.equals("Authorization") ||
+               headerName.equals("User-Agent") ||
+               headerName.equals("Host") ||
+               headerName.equals("Content-Type") ||
+               headerName.equals("Accept");
+    }
+    
+    private String maskSensitiveData(String headerName, String headerValue) {
+        if (headerName.equals("Authorization") || 
+            headerName.equals("X-Validated-Token") ||
+            headerName.contains("Token")) {
+            
+            if (headerValue != null && headerValue.length() > 10) {
+                return headerValue.substring(0, 10) + "***MASKED***";
+            }
+        }
+        
+        return headerValue;
     }
 } 

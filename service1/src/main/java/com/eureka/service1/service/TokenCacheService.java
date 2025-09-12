@@ -47,7 +47,7 @@ public class TokenCacheService {
                 SignedTokenData signedTokenData = (SignedTokenData) cachedData;
                 
                 // Verify signature using comprehensive verification
-                if (!signatureVerificationService.verifySignatureComprehensive(signedTokenData)) {
+                if (!signatureVerificationService.verifySignatureComprehensive(signedTokenData, "gateway")) {
                     log.warn("Invalid signature detected for token: {} - possible tampering", token);
                     invalidateToken(token);
                     return null;

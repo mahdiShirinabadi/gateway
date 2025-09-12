@@ -103,7 +103,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private Mono<List<String>> getAllPermissionsAndCacheToken(String token, String username) {
         try {
             // Call ACL service to get all permissions for the user
-            String aclPermissionsUrl = "http://localhost:8083/api/acl/user-permissions?username=" + username;
+            String aclPermissionsUrl = "http://localhost:8081/api/acl/user-permissions?username=" + username;
             
             return webClient.get()
                     .uri(aclPermissionsUrl)
@@ -147,7 +147,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     private Mono<TokenValidationResponse> validateTokenWithSSO(String token) {
         return webClient.post()
-                .uri("http://localhost:8081/api/auth/validate")
+                .uri("http://localhost:8084/api/auth/validate")
                 .header("Content-Type", "application/json")
                 .bodyValue(new TokenValidationRequest(token))
                 .retrieve()
@@ -157,7 +157,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
 
     private Mono<Boolean> checkAuthorizationWithACL(String username, String permissionName) {
         return webClient.post()
-                .uri("http://localhost:8083/api/acl/check")
+                .uri("http://localhost:8081/api/acl/check")
                 .header("Content-Type", "application/json")
                 .bodyValue(new AclRequest(username, permissionName))
                 .retrieve()

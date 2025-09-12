@@ -1,0 +1,148 @@
+package com.eureka.acl.controller;
+
+import com.eureka.acl.entity.Permission;
+import com.eureka.acl.service.AclService;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/acl")
+@RequiredArgsConstructor
+@Log4j2
+public class AclController {
+    
+    private final AclService aclService;
+    
+    @PostMapping("/check")
+    public ResponseEntity<Map<String, Object>> checkPermission(@RequestBody PermissionRequest request) {
+        log.info("Permission check request for user: {}, permission: {}", 
+                request.getUsername(), request.getPermissionName());
+        
+        boolean hasPermission = aclService.hasPermission(
+                request.getUsername(), 
+                request.getPermissionName(),
+                request.getProjectName()
+        );
+        
+        Map<String, Object> response = Map.of(
+                "username", request.getUsername(),
+                "permission", request.getPermissionName(),
+                "allowed", hasPermission
+        );
+        
+        log.info("Permission check result: {}", hasPermission);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/permissions/{username}")
+    public ResponseEntity<List<Permission>> getUserPermissions(@PathVariable String username) {
+        log.info("Getting permissions for user: {}", username);
+        List<Permission> permissions = aclService.getUserPermissions(username);
+        return ResponseEntity.ok(permissions);
+    }
+    
+    @GetMapping("/user-permissions")
+    public ResponseEntity<Map<String, Object>> getUserPermissionsAsStrings(@RequestParam String username) {
+        log.info("Getting permissions as strings for user: {}", username);
+        List<Permission> permissions = aclService.getUserPermissions(username);
+        
+        // Convert Permission objects to permission names
+        List<String> permissionNames = permissions.stream()
+                .map(Permission::getName)
+                .collect(Collectors.toList());
+        
+        Map<String, Object> response = Map.of(
+                "username", username,
+                "permissions", permissionNames
+        );
+        
+        log.info("Retrieved {} permissions for user: {}", permissionNames.size(), username);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/roles")
+    public ResponseEntity<String> addRole(@RequestBody RoleRequest request) {
+        log.info("Adding role: {}", request.getName());
+        aclService.addRole(request.getName());
+        return ResponseEntity.ok("Role added successfully");
+    }
+    
+    @PostMapping("/permissions")
+    public ResponseEntity<String> addPermission(@RequestBody PermissionCreateRequest request) {
+        log.info("Adding permission: {}", request.getName());
+        aclService.addPermission(
+                request.getName(),
+                request.getProjectName(),
+                request.isCritical(),
+                request.getPersianName()
+        );
+        return ResponseEntity.ok("Permission added successfully");
+    }
+    
+    @PostMapping("/assign-permission")
+    public ResponseEntity<String> assignPermissionToRole(@RequestBody PermissionAssignmentRequest request) {
+        log.info("Assigning permission {} to role {}", request.getPermissionName(), request.getRoleName());
+        aclService.assignPermissionToRole(request.getRoleName(), request.getPermissionName());
+        return ResponseEntity.ok("Permission assigned to role successfully");
+    }
+    
+    @PostMapping("/assign-role")
+    public ResponseEntity<String> assignRoleToUser(@RequestBody UserRoleAssignmentRequest request) {
+        log.info("Assigning role {} to user {}", request.getRoleName(), request.getUsername());
+        aclService.assignRoleToUser(request.getUsername(), request.getRoleName());
+        return ResponseEntity.ok("Role assigned to user successfully");
+    }
+    
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("ACL Service is running");
+    }
+    
+    // Request classes
+    @Getter
+    @Setter
+    public static class PermissionRequest {
+        private String username;
+        private String projectName;
+        private String permissionName;
+    }
+
+    @Getter
+    @Setter
+    public static class RoleRequest {
+        private String name;
+    }
+
+    @Setter
+    @Getter
+    public static class PermissionCreateRequest {
+        private String name;
+        private String projectName;
+        private boolean critical;
+        private String persianName;
+    }
+
+    @Getter
+    @Setter
+    public static class PermissionAssignmentRequest {
+        private String roleName;
+        private String permissionName;
+    }
+
+    @Getter
+    @Setter
+    public static class UserRoleAssignmentRequest {
+        private String username;
+        private String roleName;
+    }
+} 

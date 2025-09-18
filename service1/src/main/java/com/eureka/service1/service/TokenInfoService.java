@@ -16,35 +16,16 @@ public class TokenInfoService {
     
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final SignatureService signatureService;
     
-    public TokenInfoService(RedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper) {
+    public TokenInfoService(RedisTemplate<String, String> redisTemplate, ObjectMapper objectMapper, SignatureService signatureService) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+        this.signatureService = signatureService;
     }
     
-    /**
-     * Store token info in Redis with token as key and JSON data as value
-     * @param token The JWT token (used as Redis key)
-     * @param tokenInfo The token information to store as JSON
-     * @param ttlMinutes Time to live in minutes
-     */
-    public void storeTokenInfo(String token, TokenInfo tokenInfo, long ttlMinutes) {
-        try {
-            String jsonData = objectMapper.writeValueAsString(tokenInfo);
-            redisTemplate.opsForValue().set(token, jsonData, ttlMinutes, TimeUnit.MINUTES);
-            log.info("Stored token info for token: {} with TTL: {} minutes", token, ttlMinutes);
-        } catch (JsonProcessingException e) {
-            log.error("Error serializing token info to JSON: {}", e.getMessage());
-            throw new RuntimeException("Failed to store token info", e);
-        }
-    }
-    
-    /**
-     * Store token info with default TTL (30 minutes)
-     */
-    public void storeTokenInfo(String token, TokenInfo tokenInfo) {
-        storeTokenInfo(token, tokenInfo, 30);
-    }
+    // Note: Service1 only reads and deletes from Redis
+    // Gateway is responsible for storing token info
     
     /**
      * Retrieve token info from Redis
@@ -53,9 +34,17 @@ public class TokenInfoService {
      */
     public TokenInfo getTokenInfo(String token) {
         try {
-            String jsonData = redisTemplate.opsForValue().get(token);
 
+            String jsonData = redisTemplate.opsForValue().get(token);
             TokenInfo tokenInfo = objectMapper.readValue(jsonData, TokenInfo.class);
+            
+            // Verify signature for integrity check using SignatureService
+            if (!signatureService.verifySignature(tokenInfo.getUsername(), tokenInfo.getPermissions(), token, tokenInfo.getSignature())) {
+                log.warn("Token info signature verification failed for token: {}", token);
+                // Remove tampered token
+                redisTemplate.delete(token);
+                return null;
+            }
             
             // Check if token is expired
             if (tokenInfo.isExpired()) {
@@ -65,7 +54,7 @@ public class TokenInfoService {
                 return null;
             }
             
-            log.debug("Retrieved token info for token: {}", token);
+            log.debug("Retrieved and verified token info for token: {}", token);
             return tokenInfo;
             
         } catch (JsonProcessingException e) {
@@ -122,15 +111,7 @@ public class TokenInfoService {
         log.info("Removed token from Redis: {}", token);
     }
     
-    /**
-     * Update token TTL
-     */
-    public void refreshToken(String token, long ttlMinutes) {
-        if (redisTemplate.hasKey(token)) {
-            redisTemplate.expire(token, ttlMinutes, TimeUnit.MINUTES);
-            log.info("Refreshed TTL for token: {} to {} minutes", token, ttlMinutes);
-        }
-    }
+    // Note: Service1 does not refresh tokens - Gateway handles TTL management
     
     /**
      * Get remaining TTL for token

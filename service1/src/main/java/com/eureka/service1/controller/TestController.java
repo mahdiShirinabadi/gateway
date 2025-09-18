@@ -2,7 +2,6 @@ package com.eureka.service1.controller;
 
 import com.eureka.service1.config.PublicKeyConfig;
 import com.eureka.service1.service.PublicKeyService;
-import com.eureka.service1.service.SignatureVerificationService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +21,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TestController {
     private final PublicKeyService publicKeyService;
-    private final SignatureVerificationService signatureVerificationService;
     private final PublicKeyConfig publicKeyConfig;
 
     @GetMapping("/config/status")

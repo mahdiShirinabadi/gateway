@@ -1,6 +1,5 @@
 package com.eureka.service1.config;
 
-import com.eureka.service1.service.TokenCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +21,6 @@ import java.util.Map;
 public class CustomUserDetailsService implements UserDetailsService {
     
     private final WebClient webClient;
-    private final TokenCacheService tokenCacheService;
     
     @Value("${acl.service.url}")
     private String aclServiceUrl;
@@ -55,6 +53,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         try {
             log.debug("Fetching permissions for user: {} from ACL service", username);
             
+            @SuppressWarnings("unchecked")
             Map<String, Object> response = webClient.get()
                     .uri(aclServiceUrl.replace("/check", "/user-permissions") + "?username=" + username)
                     .retrieve()

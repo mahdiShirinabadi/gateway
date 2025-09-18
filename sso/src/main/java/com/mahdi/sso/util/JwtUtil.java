@@ -20,8 +20,7 @@ import java.util.function.Function;
 @Log4j2
 public class JwtUtil {
     
-    private final RsaKeyGenerator rsaKeyGenerator;
-    
+
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
     
@@ -34,7 +33,7 @@ public class JwtUtil {
     
     private String createToken(Map<String, Object> claims, String subject) {
         try {
-            PrivateKey privateKey = rsaKeyGenerator.getPrivateKey();
+            PrivateKey privateKey = RsaKeyGenerator.readPrivateKey();
             
             return Jwts.builder()
                     .setClaims(claims)
@@ -52,7 +51,7 @@ public class JwtUtil {
     public Boolean validateToken(String token) {
         try {
             log.debug("Validating JWT token");
-            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
+            PublicKey publicKey = RsaKeyGenerator.getPublic();
             
             Jwts.parserBuilder()
                     .setSigningKey(publicKey)
@@ -77,7 +76,7 @@ public class JwtUtil {
     
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         try {
-            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
+            PublicKey publicKey = RsaKeyGenerator.getPublic();
             
             final Claims claims = Jwts.parserBuilder()
                     .setSigningKey(publicKey)
@@ -102,6 +101,6 @@ public class JwtUtil {
     }
     
     public String getPublicKeyForValidation() {
-        return rsaKeyGenerator.getPublicKeyAsString();
+        return RsaKeyGenerator.formatPublicKey();
     }
 } 

@@ -25,3 +25,4 @@ public class CreateUserResponse {
         return new CreateUserResponse(null, null, message, false);
     }
 }
+

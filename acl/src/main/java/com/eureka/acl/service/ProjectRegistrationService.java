@@ -9,6 +9,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,8 @@ public class ProjectRegistrationService {
             project.setDescription(description);
             project.setBaseUrl(baseUrl);
             project.setVersion(version);
+            project.setUpdateBy("System");
+            project.setUpdateTime(LocalDateTime.now());
             return projectRepository.save(project);
         }
         
@@ -40,6 +43,8 @@ public class ProjectRegistrationService {
         project.setDescription(description);
         project.setBaseUrl(baseUrl);
         project.setVersion(version);
+        project.setCreateBy("System");
+        project.setCreateTime(LocalDateTime.now());
         
         Project savedProject = projectRepository.save(project);
         log.info("Project {} registered successfully", name);
@@ -68,6 +73,8 @@ public class ProjectRegistrationService {
                 permission.setProjectName(projectName);
                 permission.setCritical(api.isCritical());
                 permission.setPersianName(api.getPersianName());
+                permission.setCreateBy("System");
+                permission.setCreateTime(LocalDateTime.now());
                 permissionRepository.save(permission);
             }
             
@@ -82,6 +89,8 @@ public class ProjectRegistrationService {
                 projectApi.setDescription(api.getDescription());
                 projectApi.setPermissionName(api.getPermissionName());
                 projectApi.setPublic(api.isPublic());
+                projectApi.setUpdateBy("System");
+                projectApi.setUpdateTime(LocalDateTime.now());
                 projectApiRepository.save(projectApi);
             } else {
                 log.info("Creating new API: {} {} for project: {}", 
@@ -93,6 +102,8 @@ public class ProjectRegistrationService {
                 projectApi.setPermissionName(api.getPermissionName());
                 projectApi.setDescription(api.getDescription());
                 projectApi.setPublic(api.isPublic());
+                projectApi.setCreateBy("System");
+                projectApi.setCreateTime(LocalDateTime.now());
                 projectApiRepository.save(projectApi);
             }
         }

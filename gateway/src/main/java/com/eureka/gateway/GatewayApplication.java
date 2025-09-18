@@ -33,19 +33,76 @@ public class GatewayApplication {
 			ServerHttpRequest request = exchange.getRequest();
 			String path = request.getPath().value();
 			String method = request.getMethod().name();
+			String clientIp = getClientIp(request);
+			String userAgent = request.getHeaders().getFirst("User-Agent");
+			String authHeader = request.getHeaders().getFirst("Authorization");
+			String requestId = java.util.UUID.randomUUID().toString();
 			
-			System.out.println("Gateway Request: " + method + " " + path);
+			// Log request details
+			System.out.println("=== GATEWAY REQUEST [" + requestId + "] ===");
+			System.out.println("Method: " + method);
+			System.out.println("Path: " + path);
+			System.out.println("Client IP: " + clientIp);
+			System.out.println("User-Agent: " + userAgent);
+			System.out.println("Authorization: " + (authHeader != null ? "Present" : "Not Present"));
+			System.out.println("Headers: " + request.getHeaders());
+			System.out.println("Query Params: " + request.getQueryParams());
+			System.out.println("Timestamp: " + System.currentTimeMillis());
+			System.out.println("========================");
 			
-			// Add request timestamp
+			// Add request timestamp and ID
 			ServerHttpRequest modifiedRequest = request.mutate()
 					.header("X-Request-Timestamp", String.valueOf(System.currentTimeMillis()))
+					.header("X-Gateway-Request-ID", requestId)
 					.build();
 			
 			return chain.filter(exchange.mutate().request(modifiedRequest).build())
+					.doOnSuccess(result -> {
+						// Log successful response
+						System.out.println("=== GATEWAY RESPONSE [" + requestId + "] ===");
+						System.out.println("Method: " + method);
+						System.out.println("Path: " + path);
+						System.out.println("Status: " + exchange.getResponse().getStatusCode());
+						System.out.println("Response Headers: " + exchange.getResponse().getHeaders());
+						System.out.println("Timestamp: " + System.currentTimeMillis());
+						System.out.println("=========================");
+					})
+					.doOnError(throwable -> {
+						// Log error response
+						System.out.println("=== GATEWAY ERROR [" + requestId + "] ===");
+						System.out.println("Method: " + method);
+						System.out.println("Path: " + path);
+						System.out.println("Error: " + throwable.getMessage());
+						System.out.println("Error Type: " + throwable.getClass().getSimpleName());
+						System.out.println("Error Source: GATEWAY");
+						System.out.println("Timestamp: " + System.currentTimeMillis());
+						System.out.println("=========================");
+					})
 					.doFinally(signalType -> {
-						System.out.println("Gateway Response: " + method + " " + path + " - " + signalType);
+						// Log completion
+						System.out.println("=== GATEWAY COMPLETION [" + requestId + "] ===");
+						System.out.println("Method: " + method);
+						System.out.println("Path: " + path);
+						System.out.println("Signal Type: " + signalType);
+						System.out.println("Timestamp: " + System.currentTimeMillis());
+						System.out.println("=========================");
 					});
 		};
+	}
+	
+	private String getClientIp(ServerHttpRequest request) {
+		String xForwardedFor = request.getHeaders().getFirst("X-Forwarded-For");
+		if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+			return xForwardedFor.split(",")[0].trim();
+		}
+		
+		String xRealIp = request.getHeaders().getFirst("X-Real-IP");
+		if (xRealIp != null && !xRealIp.isEmpty()) {
+			return xRealIp;
+		}
+		
+		return request.getRemoteAddress() != null ? 
+			request.getRemoteAddress().getAddress().getHostAddress() : "unknown";
 	}
 
 	@Bean

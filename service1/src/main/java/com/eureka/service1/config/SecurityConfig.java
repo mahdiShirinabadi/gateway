@@ -1,5 +1,6 @@
 package com.eureka.service1.config;
 
+import com.eureka.service1.filter.Service1SecurityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -14,10 +15,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final Service1SecurityFilter service1SecurityFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    public SecurityConfig(Service1SecurityFilter service1SecurityFilter) {
+        this.service1SecurityFilter = service1SecurityFilter;
     }
 
     @Bean
@@ -26,11 +27,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/registration/**").permitAll() // Allow API registration
-                .requestMatchers("/app1/public").permitAll() // Allow public endpoint
+                .requestMatchers("/service1/actuator/**").permitAll() // Allow actuator endpoints
+                .requestMatchers("/service1/public/**").permitAll() // Allow public endpoints
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(service1SecurityFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }

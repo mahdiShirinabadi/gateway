@@ -3,6 +3,7 @@ package com.eureka.service1.controller;
 import com.eureka.service1.config.PublicKeyConfig;
 import com.eureka.service1.service.PublicKeyService;
 import com.eureka.service1.service.SignatureVerificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class TestController {
     private final PublicKeyConfig publicKeyConfig;
 
     @GetMapping("/config/status")
-    public ResponseEntity<Map<String, Object>> getConfigStatus() {
+    public ResponseEntity<Map<String, Object>> getConfigStatus(HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();
         
         try {
@@ -37,6 +38,10 @@ public class TestController {
             PublicKey ssoKey = publicKeyService.getSsoPublicKey();
             PublicKey service1Key = publicKeyService.getService1PublicKey();
             
+            // Get security info from request
+            String authenticatedUser = (String) request.getAttribute("authenticatedUser");
+            String validatedToken = (String) request.getAttribute("validatedToken");
+            
             response.put("success", true);
             response.put("gatewayKeyCached", gatewayKeyCached);
             response.put("ssoKeyCached", ssoKeyCached);
@@ -44,7 +49,10 @@ public class TestController {
             response.put("gatewayKeyAvailable", gatewayKey != null);
             response.put("ssoKeyAvailable", ssoKey != null);
             response.put("service1KeyAvailable", service1Key != null);
-            response.put("message", "Config Server status checked");
+            response.put("authenticatedUser", authenticatedUser);
+            response.put("tokenValidated", validatedToken != null);
+            response.put("securityLevel", "SERVICE1_SECURITY_ENABLED");
+            response.put("message", "Config Server status checked with Service1 security");
             
             log.info("Service1: Config status - Gateway: {} (cached: {}), SSO: {} (cached: {}), Service1: {} (cached: {})", 
                     gatewayKey != null, gatewayKeyCached, ssoKey != null, ssoKeyCached, service1Key != null, service1KeyCached);

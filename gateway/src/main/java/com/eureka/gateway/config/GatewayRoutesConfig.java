@@ -1,6 +1,7 @@
 package com.eureka.gateway.config;
 
 import com.eureka.gateway.AuthenticationFilter;
+import com.eureka.gateway.filter.RequestLoggingFilter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 public class GatewayRoutesConfig {
 
     @Bean
-    public RouteLocator customRouteLocator(RouteLocatorBuilder builder, AuthenticationFilter authenticationFilter) {
+    public RouteLocator customRouteLocator(RouteLocatorBuilder builder, AuthenticationFilter authenticationFilter, RequestLoggingFilter requestLoggingFilter) {
         return builder.routes()
                 // SSO Routes - mixed public and protected access
                 .route("sso-route", r -> r
@@ -37,7 +38,7 @@ public class GatewayRoutesConfig {
                                     return chain.filter(exchange);
                                 }))
                         .uri("http://localhost:8084"))
-                
+
                 // Service1 Route - with authentication
                 .route("service1-route", r -> r
                         .path("/service1/**")
@@ -46,7 +47,7 @@ public class GatewayRoutesConfig {
                                 .addRequestHeader("X-Gateway-Source", "api-gateway")
                                 .filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("http://localhost:8082"))
-                
+
                 // Service2 Route - with authentication
                 .route("service2-route", r -> r
                         .path("/service2/**")
@@ -55,17 +56,23 @@ public class GatewayRoutesConfig {
                                 .addRequestHeader("X-Gateway-Source", "api-gateway")
                                 .filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("http://localhost:8083"))
+
+                // ACL Project Registration Routes - public access (no authentication)
+                .route("acl-project-route", r -> r
+                        .path("/acl/api/project-registration/**")
+                        .filters(f -> f
+                                .addRequestHeader("X-Gateway-Source", "api-gateway"))
+                        .uri("http://localhost:8083/acl"))
                 
-                // ACL Route - with authentication
+                // ACL Other Routes - with authentication
                 .route("acl-route", r -> r
                         .path("/acl/**")
                         .filters(f -> f
                                 .stripPrefix(1)
                                 .addRequestHeader("X-Gateway-Source", "api-gateway")
                                 .filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
-                        .uri("http://localhost:8081"))
-                
-                
+                        .uri("http://localhost:8083/acl"))
+
                 .build();
     }
 }

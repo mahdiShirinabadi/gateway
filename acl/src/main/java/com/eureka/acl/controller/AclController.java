@@ -2,6 +2,7 @@ package com.eureka.acl.controller;
 
 import com.eureka.acl.entity.Permission;
 import com.eureka.acl.service.AclService;
+import com.eureka.acl.service.PermissionChangeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class AclController {
     
     private final AclService aclService;
+    private final PermissionChangeService permissionChangeService;
     
     @Operation(
             summary = "بررسی دسترسی کاربر",
@@ -52,8 +54,12 @@ public class AclController {
     public ResponseEntity<Map<String, Object>> checkPermission(
             @Parameter(description = "اطلاعات درخواست بررسی دسترسی", required = true)
             @RequestBody PermissionRequest request) {
-        log.info("Permission check request for user: {}, permission: {}", 
-                request.getUsername(), request.getPermissionName());
+        log.info("=== ACL PERMISSION CHECK ===");
+        log.info("User: {}", request.getUsername());
+        log.info("Permission: {}", request.getPermissionName());
+        log.info("Project: {}", request.getProjectName());
+        log.info("Error Source: ACL SERVICE");
+        log.info("=============================");
         
         boolean hasPermission = aclService.hasPermission(
                 request.getUsername(), 
@@ -67,7 +73,20 @@ public class AclController {
                 "allowed", hasPermission
         );
         
-        log.info("Permission check result: {}", hasPermission);
+        if (hasPermission) {
+            log.info("=== ACL PERMISSION GRANTED ===");
+            log.info("User: {}", request.getUsername());
+            log.info("Permission: {}", request.getPermissionName());
+            log.info("=============================");
+        } else {
+            log.warn("=== ACL PERMISSION DENIED ===");
+            log.warn("User: {}", request.getUsername());
+            log.warn("Permission: {}", request.getPermissionName());
+            log.warn("Project: {}", request.getProjectName());
+            log.warn("Error Source: ACL SERVICE");
+            log.warn("Status: 403 FORBIDDEN");
+            log.warn("=============================");
+        }
         
         return ResponseEntity.ok(response);
     }
@@ -185,6 +204,29 @@ public class AclController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("ACL Service is running");
+    }
+
+    @PostMapping("/permission-changed")
+    public ResponseEntity<Map<String, Object>> permissionChanged(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        
+        log.info("=== ACL PERMISSION CHANGE NOTIFICATION ===");
+        log.info("User: {}", username);
+        log.info("=============================");
+
+        if (username != null) {
+            permissionChangeService.notifyPermissionChange(username);
+        } else {
+            permissionChangeService.notifyAllUsersPermissionChange();
+        }
+
+        Map<String, Object> response = Map.of(
+                "success", true,
+                "message", "Permission change notification sent",
+                "username", username != null ? username : "all users"
+        );
+
+        return ResponseEntity.ok(response);
     }
     
     // Request classes

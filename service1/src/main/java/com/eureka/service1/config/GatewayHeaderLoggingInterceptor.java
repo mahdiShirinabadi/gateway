@@ -87,3 +87,4 @@ public class GatewayHeaderLoggingInterceptor implements HandlerInterceptor {
         return headerValue;
     }
 }
+

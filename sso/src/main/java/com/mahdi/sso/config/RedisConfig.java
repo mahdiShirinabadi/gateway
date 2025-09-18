@@ -1,4 +1,4 @@
-package com.eureka.service1.config;
+package com.mahdi.sso.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,3 +27,4 @@ public class RedisConfig {
         return template;
     }
 }
+

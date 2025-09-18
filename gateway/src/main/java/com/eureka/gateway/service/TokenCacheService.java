@@ -103,4 +103,37 @@ public class TokenCacheService {
             System.err.println("Gateway: خطا در حذف همه توکن‌ها: " + e.getMessage());
         }
     }
+
+    public void removeToken(String token) {
+        try {
+            String cacheKey = TOKEN_CACHE_PREFIX + token;
+            redisTemplate.delete(cacheKey);
+            System.out.println("Gateway: توکن منقضی از کش حذف شد: " + token);
+            
+        } catch (Exception e) {
+            System.err.println("Gateway: خطا در حذف توکن منقضی: " + e.getMessage());
+        }
+    }
+
+    public void removeUserTokens(String username) {
+        try {
+            // Find all tokens for a specific user
+            var keys = redisTemplate.keys(TOKEN_CACHE_PREFIX + "*");
+            if (keys != null) {
+                for (String key : keys) {
+                    Object value = redisTemplate.opsForValue().get(key);
+                    if (value instanceof TokenData) {
+                        TokenData tokenData = (TokenData) value;
+                        if (username.equals(tokenData.getUsername())) {
+                            redisTemplate.delete(key);
+                            System.out.println("Gateway: توکن کاربر حذف شد: " + username);
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Gateway: خطا در حذف توکن‌های کاربر: " + e.getMessage());
+        }
+    }
 } 

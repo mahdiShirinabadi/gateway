@@ -58,7 +58,7 @@ public class AuthController {
         
         Map<String, Object> response = authService.validateToken(token);
         
-        if ((Boolean) response.get("valid")) {
+        if (Boolean.TRUE.equals(response.get("valid"))) {
             log.info("Token validation successful");
             return ResponseEntity.ok(response);
         } else {

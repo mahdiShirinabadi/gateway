@@ -76,13 +76,10 @@ public class TokenData implements Serializable {
         String sortedPermissions = permissions != null ? 
             permissions.stream().sorted().collect(Collectors.joining(",")) : "";
         
-        return String.format("%s|%s|%s|%s|%s|%s",
+        return String.format("%s|%s|%s",
             token,
             username,
-            sortedPermissions,
-            validatedAt.toString(),
-            expiresAt.toString(),
-            "GATEWAY_SECRET_KEY_2024"
+            sortedPermissions
         );
     }
 

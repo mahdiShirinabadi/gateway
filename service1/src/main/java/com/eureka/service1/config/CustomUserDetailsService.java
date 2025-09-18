@@ -1,6 +1,5 @@
 package com.eureka.service1.config;
 
-import com.eureka.service1.model.TokenData;
 import com.eureka.service1.service.TokenCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

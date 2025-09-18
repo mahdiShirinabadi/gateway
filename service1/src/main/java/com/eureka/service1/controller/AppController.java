@@ -1,7 +1,6 @@
 package com.eureka.service1.controller;
 
 import lombok.extern.log4j.Log4j2;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,7 +16,7 @@ import java.util.Map;
 @Log4j2
 @RestController
 @RequestMapping("/app1")
-public class App1Controller {
+public class AppController {
     
     @GetMapping("/hello")
     @PreAuthorize("hasAuthority('SERVICE1_HELLO_ACCESS')")

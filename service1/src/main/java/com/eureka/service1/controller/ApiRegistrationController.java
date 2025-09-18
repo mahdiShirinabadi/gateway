@@ -1,6 +1,6 @@
 package com.eureka.service1.controller;
 
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -22,10 +22,7 @@ public class ApiRegistrationController {
     
     @Value("${server.port:8082}")
     private String serverPort;
-    
-    @Value("${spring.application.name:service1}")
-    private String applicationName;
-    
+
     private final RestTemplate restTemplate;
     
     @EventListener(ApplicationReadyEvent.class)
@@ -98,27 +95,22 @@ public class ApiRegistrationController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Service1 API Registration Controller is running");
     }
-    
+
+    @Setter
+    @Getter
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class ProjectRegistrationRequest {
         private String name;
         private String description;
         private String baseUrl;
         private String version;
-        
-        // Getters and Setters
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public String getBaseUrl() { return baseUrl; }
-        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
-        
-        public String getVersion() { return version; }
-        public void setVersion(String version) { this.version = version; }
     }
-    
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class ApiRegistration {
         private String apiPath;
         private String httpMethod;
@@ -127,38 +119,5 @@ public class ApiRegistrationController {
         private boolean isPublic;
         private boolean isCritical;
         private String persianName;
-        
-        public ApiRegistration(String apiPath, String httpMethod, String permissionName, 
-                             String description, boolean isPublic, boolean isCritical, String persianName) {
-            this.apiPath = apiPath;
-            this.httpMethod = httpMethod;
-            this.permissionName = permissionName;
-            this.description = description;
-            this.isPublic = isPublic;
-            this.isCritical = isCritical;
-            this.persianName = persianName;
-        }
-        
-        // Getters and Setters
-        public String getApiPath() { return apiPath; }
-        public void setApiPath(String apiPath) { this.apiPath = apiPath; }
-        
-        public String getHttpMethod() { return httpMethod; }
-        public void setHttpMethod(String httpMethod) { this.httpMethod = httpMethod; }
-        
-        public String getPermissionName() { return permissionName; }
-        public void setPermissionName(String permissionName) { this.permissionName = permissionName; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public boolean isPublic() { return isPublic; }
-        public void setPublic(boolean isPublic) { this.isPublic = isPublic; }
-        
-        public boolean isCritical() { return isCritical; }
-        public void setCritical(boolean isCritical) { this.isCritical = isCritical; }
-        
-        public String getPersianName() { return persianName; }
-        public void setPersianName(String persianName) { this.persianName = persianName; }
     }
 } 

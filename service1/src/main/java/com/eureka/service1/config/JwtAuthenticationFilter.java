@@ -1,7 +1,7 @@
 package com.eureka.service1.config;
 
-import com.eureka.service1.model.SignedTokenData;
-import com.eureka.service1.service.TokenCacheService;
+import com.eureka.service1.model.TokenInfo;
+import com.eureka.service1.service.TokenInfoService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -25,7 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     private final JwtTokenValidator jwtTokenValidator;
     private final UserDetailsService userDetailsService;
-    private final TokenCacheService tokenCacheService;
+    private final TokenInfoService tokenInfoService;
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -33,31 +34,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractTokenFromRequest(request);
             if (token != null) {
-                // Get signed token data with integrity verification
-                SignedTokenData signedTokenData = tokenCacheService.getVerifiedTokenData(token);
+                // Get token info from Redis (token as key, JSON data as value)
+                TokenInfo tokenInfo = tokenInfoService.getTokenInfo(token);
                 
-                if (signedTokenData != null) {
-                    // Use cached data for auth and authz with signature verification
+                if (tokenInfo != null) {
+                    // Use cached token info for authentication and authorization
                     String path = request.getRequestURI();
                     String method = request.getMethod();
                     String permissionName = jwtTokenValidator.getPermissionNameForPath(path, method);
                     
-                    if (signedTokenData.hasPermission(permissionName)) {
-                        // Set Spring Security context from verified cached data
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(signedTokenData.getUsername());
+                    if (tokenInfo.hasPermission(permissionName)) {
+                        // Set Spring Security context from cached token info
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(tokenInfo.getUsername());
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        log.info("SIGNED CACHE HIT - User authenticated and authorized: {} for path: {} (signature verified)", 
-                                signedTokenData.getUsername(), path);
+                        log.info("CACHE HIT - User authenticated and authorized: {} for path: {} (from Redis JSON data)", 
+                                tokenInfo.getUsername(), path);
                     } else {
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        response.getWriter().write("Access denied - Insufficient permissions (signed cache)");
-                        log.warn("SIGNED CACHE HIT - Authorization failed for user: {} for path: {} with permission: {}", 
-                                signedTokenData.getUsername(), path, permissionName);
+                        response.getWriter().write("Access denied - Insufficient permissions");
+                        log.warn("CACHE HIT - Authorization failed for user: {} for path: {} with permission: {}", 
+                                tokenInfo.getUsername(), path, permissionName);
                         return;
                     }
                 } else {
-                    // Cache miss or invalid signature - validate with SSO and ACL
+                    // Cache miss - validate with SSO and ACL, then store in Redis
                     if (jwtTokenValidator.validateToken(token)) {
                         String username = jwtTokenValidator.extractUsername(token);
                         if (username != null) {
@@ -66,22 +67,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             String permissionName = jwtTokenValidator.getPermissionNameForPath(path, method);
                             
                             if (jwtTokenValidator.checkAuthorization(username, permissionName)) {
-                                // Cache the token with all permissions and signature for future requests
-                                cacheTokenWithAllPermissionsAndSignature(token, username);
+                                // Get all permissions for the user and cache them in Redis
+                                List<String> allPermissions = getAllUserPermissions(username);
+                                TokenInfo newTokenInfo = new TokenInfo(username, allPermissions, "sso");
+                                tokenInfoService.storeTokenInfo(token, newTokenInfo);
                                 
                                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                                log.info("SIGNED CACHE MISS - User authenticated and authorized: {} for path: {} (validated with SSO/ACL)", username, path);
+                                log.info("CACHE MISS - User authenticated and authorized: {} for path: {} (validated with SSO/ACL and cached)", username, path);
                             } else {
                                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                                 response.getWriter().write("Access denied - Insufficient permissions");
-                                log.warn("SIGNED CACHE MISS - Authorization failed for user: {} for path: {} with permission: {}", username, path, permissionName);
+                                log.warn("CACHE MISS - Authorization failed for user: {} for path: {} with permission: {}", username, path, permissionName);
                                 return;
                             }
                         }
                     } else {
-                        log.debug("SIGNED CACHE MISS - No valid token found in request");
+                        log.debug("CACHE MISS - No valid token found in request");
                     }
                 }
             } else {
@@ -101,21 +104,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
     
-    private void cacheTokenWithAllPermissionsAndSignature(String token, String username) {
+    private List<String> getAllUserPermissions(String username) {
         try {
-            // Get all permissions for the user from ACL service
-            // This is a simplified version - in real implementation, you'd call ACL service
-            // to get all permissions for the user and cache them with signature
-            log.debug("Caching signed token with all permissions for user: {}", username);
+            // In a real implementation, you would call the ACL service to get all permissions for the user
+            // For now, return a basic set of permissions
+            List<String> permissions = new ArrayList<>();
+            permissions.add("SERVICE1_ALL_ACCESS");
+            permissions.add("SERVICE1_HELLO_ACCESS");
+            permissions.add("SERVICE1_ADMIN_ACCESS");
             
-            // For now, we'll cache with basic permissions - in real implementation,
-            // you'd get the full permission list from ACL service
-            // The SignedTokenData will automatically generate a cryptographic signature
-            tokenCacheService.cacheToken(token, username, new ArrayList<>());
-            
-            log.info("Signed token cached successfully for user: {} with cryptographic signature", username);
+            log.debug("Retrieved permissions for user: {} - {}", username, permissions);
+            return permissions;
         } catch (Exception e) {
-            log.error("Error caching signed token with permissions: {}", e.getMessage());
+            log.error("Error getting user permissions: {}", e.getMessage());
+            return new ArrayList<>();
         }
     }
 } 

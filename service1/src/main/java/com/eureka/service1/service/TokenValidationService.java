@@ -1,32 +1,30 @@
 package com.eureka.service1.service;
 
+import com.eureka.service1.model.TokenInfo;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtParser;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.security.KeyFactory;
 import java.security.PublicKey;
-import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
-import java.util.List;
 
 @Service
 @Log4j2
 public class TokenValidationService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final TokenInfoService tokenInfoService;
     private final PublicKey publicKey;
 
     @Value("${jwt.public-key}")
     private String publicKeyString;
 
-    public TokenValidationService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public TokenValidationService(TokenInfoService tokenInfoService) {
+        this.tokenInfoService = tokenInfoService;
         this.publicKey = loadPublicKey();
     }
 
@@ -52,58 +50,36 @@ public class TokenValidationService {
         try {
             log.info("Validating token in Service1 for user: {}", userId);
             
-            // Check Redis for signed token
-            String cacheKey = "token:" + token;
-            String signature = (String) redisTemplate.opsForValue().get(cacheKey);
+            // First check if token exists in Redis with JSON data
+            TokenInfo tokenInfo = tokenInfoService.getTokenInfo(token);
             
-            if (signature == null) {
+            if (tokenInfo == null) {
                 log.warn("Token not found in Redis cache");
                 return false;
             }
-
-            // Create token data: token + userId
-            String tokenData = token + ":" + userId;
             
-            // Verify signature with public key
-            boolean isValid = verifySignature(tokenData, signature);
-            
-            if (isValid) {
-                log.info("Token signature verified successfully for user: {}", userId);
-                return true;
-            } else {
-                log.warn("Token signature verification failed for user: {}", userId);
+            // Verify the username matches
+            if (!userId.equals(tokenInfo.getUsername())) {
+                log.warn("Token username mismatch. Expected: {}, Found: {}", userId, tokenInfo.getUsername());
                 return false;
             }
-
+            
+            // Check if token is expired
+            if (tokenInfo.isExpired()) {
+                log.warn("Token has expired");
+                tokenInfoService.removeToken(token); // Clean up expired token
+                return false;
+            }
+            
+            log.info("Token validated successfully for user: {}", userId);
+            return true;
+            
         } catch (Exception e) {
             log.error("Token validation failed: {}", e.getMessage());
             return false;
         }
     }
 
-    private boolean verifySignature(String data, String signature) {
-        try {
-            Signature sig = Signature.getInstance("SHA256withRSA");
-            sig.initVerify(publicKey);
-            sig.update(data.getBytes());
-            byte[] signatureBytes = Base64.getDecoder().decode(signature);
-            return sig.verify(signatureBytes);
-        } catch (Exception e) {
-            log.error("Error verifying signature: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    private String generateTokenHash(String token) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(token.getBytes());
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            log.error("Error generating token hash: {}", e.getMessage());
-            return token; // Fallback to original token
-        }
-    }
 
     public String getUsernameFromToken(String token) {
         try {
@@ -143,28 +119,10 @@ public class TokenValidationService {
 
     public boolean hasPermission(String token, String requiredPermission) {
         try {
-            // First check if token is expired
-            if (isTokenExpired(token)) {
-                log.warn("Token expired for permission check");
-                return false;
-            }
-
-            // First validate token with JWT
-            if (!validateToken(token, getUsernameFromToken(token))) {
-                log.warn("Invalid token for permission check");
-                return false;
-            }
-
-            String tokenHash = generateTokenHash(token);
-            String cacheKey = "permissions:" + tokenHash;
-            @SuppressWarnings("unchecked")
-            List<String> permissions = (List<String>) redisTemplate.opsForValue().get(cacheKey);
-
-            boolean hasPermission = permissions.contains(requiredPermission);
-            log.info("Permission check from cache: {} for permission: {}", hasPermission, requiredPermission);
+            // Use the new TokenInfoService to check permission
+            boolean hasPermission = tokenInfoService.hasPermission(token, requiredPermission);
+            log.info("Permission check result: {} for permission: {}", hasPermission, requiredPermission);
             return hasPermission;
-
-            // If not in cache, return false (should be validated by Gateway)
         } catch (Exception e) {
             log.error("Error checking permissions: {}", e.getMessage());
             return false;

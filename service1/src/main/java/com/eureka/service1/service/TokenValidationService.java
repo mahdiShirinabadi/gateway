@@ -159,16 +159,12 @@ public class TokenValidationService {
             String cacheKey = "permissions:" + tokenHash;
             @SuppressWarnings("unchecked")
             List<String> permissions = (List<String>) redisTemplate.opsForValue().get(cacheKey);
-            
-            if (permissions != null) {
-                boolean hasPermission = permissions.contains(requiredPermission);
-                log.info("Permission check from cache: {} for permission: {}", hasPermission, requiredPermission);
-                return hasPermission;
-            }
+
+            boolean hasPermission = permissions.contains(requiredPermission);
+            log.info("Permission check from cache: {} for permission: {}", hasPermission, requiredPermission);
+            return hasPermission;
 
             // If not in cache, return false (should be validated by Gateway)
-            log.warn("No permissions found in cache for token hash: {}", tokenHash);
-            return false;
         } catch (Exception e) {
             log.error("Error checking permissions: {}", e.getMessage());
             return false;

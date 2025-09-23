@@ -21,6 +21,11 @@ public class SSOConfig {
                 .build();
     }
 
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
+    }
+
     public String getSsoServiceUrl() {
         return ssoServiceUrl;
     }

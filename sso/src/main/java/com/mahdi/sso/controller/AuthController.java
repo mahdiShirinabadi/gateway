@@ -3,7 +3,6 @@ package com.mahdi.sso.controller;
 import com.mahdi.sso.dto.LoginRequest;
 import com.mahdi.sso.dto.LoginResponse;
 import com.mahdi.sso.service.AuthService;
-import com.mahdi.sso.service.TokenSigningService;
 import com.mahdi.sso.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -20,8 +19,7 @@ public class AuthController {
     
     private final AuthService authService;
     private final JwtUtil jwtUtil;
-    private final TokenSigningService tokenSigningService;
-    
+
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         log.info("Login request received for user: {}", loginRequest.getUsername());
@@ -30,10 +28,6 @@ public class AuthController {
         
         if (response.isSuccess()) {
             log.info("Login successful for user: {}", loginRequest.getUsername());
-            
-            // Sign and cache the token
-            tokenSigningService.signAndCacheToken(response.getToken(), loginRequest.getUsername());
-            
             return ResponseEntity.ok(response);
         } else {
             log.warn("Login failed for user: {}", loginRequest.getUsername());

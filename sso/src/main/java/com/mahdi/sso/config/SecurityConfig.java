@@ -24,6 +24,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/api/auth/login",
+                        "/api/auth/validate",
                         "/api/auth/public-key",
                         "/api/auth/health",
                         "/",

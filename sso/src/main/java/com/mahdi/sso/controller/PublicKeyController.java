@@ -20,6 +20,7 @@ import java.util.Map;
 public class PublicKeyController {
     
 
+    private final RsaKeyGenerator rsaKeyGenerator;
     /**
      * Expose SSO public key for signature verification
      * This endpoint is called by Service1 to get the public key for verifying signatures
@@ -30,7 +31,7 @@ public class PublicKeyController {
             log.info("Public key requested by Service1");
             
             // Get the public key from RSA key generator
-            PublicKey publicKey = RsaKeyGenerator.getPublic();
+            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
             
             if (publicKey == null) {
                 log.error("Public key not available");
@@ -68,7 +69,7 @@ public class PublicKeyController {
     @GetMapping("/public-key/health")
     public ResponseEntity<Map<String, Object>> getPublicKeyHealth() {
         try {
-            PublicKey publicKey = RsaKeyGenerator.getPublic();
+            PublicKey publicKey = rsaKeyGenerator.getPublicKey();
             boolean isAvailable = publicKey != null;
             
             Map<String, Object> response = new HashMap<>();

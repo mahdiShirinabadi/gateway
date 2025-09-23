@@ -2,7 +2,6 @@ package com.eureka.acl.controller;
 
 import com.eureka.acl.entity.Permission;
 import com.eureka.acl.service.AclService;
-import com.eureka.acl.service.PermissionChangeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -30,8 +29,7 @@ import java.util.stream.Collectors;
 public class AclController {
     
     private final AclService aclService;
-    private final PermissionChangeService permissionChangeService;
-    
+
     @Operation(
             summary = "بررسی دسترسی کاربر",
             description = "بررسی می‌کند که آیا کاربر مشخص شده دسترسی مورد نظر را دارد یا خیر"
@@ -214,11 +212,6 @@ public class AclController {
         log.info("User: {}", username);
         log.info("=============================");
 
-        if (username != null) {
-            permissionChangeService.notifyPermissionChange(username);
-        } else {
-            permissionChangeService.notifyAllUsersPermissionChange();
-        }
 
         Map<String, Object> response = Map.of(
                 "success", true,

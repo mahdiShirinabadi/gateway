@@ -49,7 +49,7 @@ public class AclService {
             String requestBody = objectMapper.writeValueAsString(request);
             
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8083/acl/api/check"))
+                    .uri(URI.create("http://localhost:8083/acl/api/acl/check"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .timeout(Duration.ofSeconds(10))

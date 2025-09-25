@@ -53,6 +53,11 @@ public class ProjectRegistrationService {
         log.info("Getting all projects");
         return projectRepository.findAll();
     }
+    
+    public Optional<Project> getProjectByName(String name) {
+        log.info("Getting project by name: {}", name);
+        return projectRepository.findByName(name);
+    }
 
     @Getter
     @Setter

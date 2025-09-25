@@ -45,4 +45,20 @@ public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
     // Find all user-role relationships for a user
     @Query("SELECT ur FROM UserRole ur WHERE ur.user.username = :username")
     List<UserRole> findByUsername(@Param("username") String username);
+    
+    // Find user-role by user and role entities
+    @Query("SELECT ur FROM UserRole ur WHERE ur.user = :user AND ur.role = :role")
+    Optional<UserRole> findByUserAndRole(@Param("user") User user, @Param("role") Role role);
+    
+    // Check if user-role exists by entities
+    @Query("SELECT COUNT(ur) > 0 FROM UserRole ur WHERE ur.user = :user AND ur.role = :role")
+    boolean existsByUserAndRole(@Param("user") User user, @Param("role") Role role);
+    
+    // Find user roles by user ID
+    @Query("SELECT ur FROM UserRole ur WHERE ur.user.id = :userId")
+    List<UserRole> findByUserId(@Param("userId") Long userId);
+    
+    // Find user roles by role ID
+    @Query("SELECT ur FROM UserRole ur WHERE ur.role.id = :roleId")
+    List<UserRole> findByRoleId(@Param("roleId") Long roleId);
 }

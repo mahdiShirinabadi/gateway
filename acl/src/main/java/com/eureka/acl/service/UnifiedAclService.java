@@ -167,4 +167,12 @@ public class UnifiedAclService {
         log.info("Getting all critical permissions");
         return apiPermissionRepository.findCriticalPermissions();
     }
+    
+    /**
+     * Get all API permissions
+     */
+    public List<ApiPermission> getAllApiPermissions() {
+        log.info("Getting all API permissions");
+        return apiPermissionRepository.findAll();
+    }
 }

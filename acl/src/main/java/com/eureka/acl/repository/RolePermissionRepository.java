@@ -34,4 +34,8 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     // Find role permission by role and permission
     @Query("SELECT rp FROM RolePermission rp WHERE rp.role = :role AND rp.permission = :permission")
     Optional<RolePermission> findByRoleAndPermission(@Param("role") Role role, @Param("permission") ApiPermission permission);
+    
+    // Find permissions by role
+    @Query("SELECT rp.permission FROM RolePermission rp WHERE rp.role = :role")
+    List<ApiPermission> findPermissionsByRole(@Param("role") Role role);
 } 

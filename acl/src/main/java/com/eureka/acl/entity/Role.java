@@ -27,6 +27,9 @@ public class Role {
     @Column(nullable = false, unique = true)
     private String name;
     
+    @Column
+    private String description;
+    
     // Audit fields
     @CreatedDate
     @Column(name = "create_time", nullable = false, updatable = false)

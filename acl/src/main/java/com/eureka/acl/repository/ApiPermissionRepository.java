@@ -12,9 +12,13 @@ import java.util.Optional;
 @Repository
 public interface ApiPermissionRepository extends JpaRepository<ApiPermission, Long> {
     
-    // Find by permission name
+    // Find by permission name (returns List)
     @Query("SELECT ap FROM ApiPermission ap WHERE ap.name = :name")
     List<ApiPermission> findByName(@Param("name") String name);
+    
+    // Find single permission by name (returns Optional)
+    @Query("SELECT ap FROM ApiPermission ap WHERE ap.name = :name")
+    Optional<ApiPermission> findSingleByName(@Param("name") String name);
     
     // Find by project name
     @Query("SELECT ap FROM ApiPermission ap WHERE ap.project.name = :projectName")

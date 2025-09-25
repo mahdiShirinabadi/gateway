@@ -1,6 +1,7 @@
 package com.eureka.acl.controller;
 
 import com.eureka.acl.entity.Project;
+import com.eureka.acl.model.ProjectRegistrationRequest;
 import com.eureka.acl.service.ProjectRegistrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -79,24 +80,5 @@ public class ProjectRegistrationController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Project Registration Service is running");
     }
-    
-    public static class ProjectRegistrationRequest {
-        private String name;
-        private String description;
-        private String baseUrl;
-        private String version;
-        
-        // Getters and Setters
-        public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public String getBaseUrl() { return baseUrl; }
-        public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
-        
-        public String getVersion() { return version; }
-        public void setVersion(String version) { this.version = version; }
-    }
+
 } 

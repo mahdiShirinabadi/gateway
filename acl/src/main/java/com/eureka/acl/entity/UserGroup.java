@@ -33,8 +33,6 @@ public class UserGroup {
     @JoinColumn(name = "group_id", nullable = false)
     private Group group;
 
-    @Column
-    private boolean isPrimary = false;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

@@ -33,13 +33,13 @@ public class User {
     @Column
     private String fullName;
     
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-        name = "user_roles",
+        name = "user_groups",
         joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "role_id")
+        inverseJoinColumns = @JoinColumn(name = "group_id")
     )
-    private java.util.Set<Role> roles;
+    private java.util.Set<Group> groups;
     
     // Audit fields
     @CreatedDate

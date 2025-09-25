@@ -1,6 +1,7 @@
 package com.eureka.acl.service;
 
 import com.eureka.acl.entity.ApiPermission;
+import com.eureka.acl.entity.Group;
 import com.eureka.acl.entity.Project;
 import com.eureka.acl.entity.Role;
 import com.eureka.acl.entity.User;
@@ -35,24 +36,45 @@ public class UnifiedAclService {
      * Supports multiple roles per user
      */
     public boolean hasPermission(String username, String projectName, String apiPath, String httpMethod, String permissionName) {
+        log.info("=== UnifiedAclService.hasPermission() START ===");
+        log.info("Parameters: username={}, projectName={}, apiPath={}, httpMethod={}, permissionName={}",
+                username, projectName, apiPath, httpMethod, permissionName);
+        
         try {
-            log.info("Checking permission for user: {} project: {} api: {} method: {}, permission {}",
-                    username, projectName, apiPath, httpMethod, permissionName);
-            
             // Find user
             Optional<User> userOpt = userRepository.findByUsername(username);
             if (userOpt.isEmpty()) {
-                log.warn("User {} not found", username);
+                log.warn("User not found: username={}", username);
+                log.info("=== UnifiedAclService.hasPermission() END - USER NOT FOUND ===");
                 return false;
             }
             
             User user = userOpt.get();
-            Set<Role> userRoles = user.getRoles();
+            Set<Group> userGroups = user.getGroups();
             
-            if (userRoles == null || userRoles.isEmpty()) {
-                log.warn("User {} has no roles assigned", username);
+            if (userGroups == null || userGroups.isEmpty()) {
+                log.warn("User {} has no groups assigned", username);
+                log.info("=== UnifiedAclService.hasPermission() END - NO GROUPS ===");
                 return false;
             }
+            
+            log.info("User {} belongs to {} groups: {}", username, userGroups.size(),
+                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Get all roles from all user's groups
+            List<Role> userRoles = userGroups.stream()
+                    .flatMap(group -> group.getRoles().stream())
+                    .distinct()
+                    .toList();
+            
+            if (userRoles.isEmpty()) {
+                log.warn("User {} has no roles through groups", username);
+                log.info("=== UnifiedAclService.hasPermission() END - NO ROLES ===");
+                return false;
+            }
+            
+            log.info("User {} has {} roles: {}", username, userRoles.size(),
+                    userRoles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList()));
 
             Long projectId = projectRepository.findByName(projectName).get().getId();
             // Find API permission
@@ -62,14 +84,18 @@ public class UnifiedAclService {
             if (apiPermissionOpt.isEmpty()) {
                 log.warn("API permission not found for project: {} api: {} method: {}", 
                         projectName, apiPath, httpMethod);
+                log.info("=== UnifiedAclService.hasPermission() END - PERMISSION NOT FOUND ===");
                 return false;
             }
             
             ApiPermission apiPermission = apiPermissionOpt.get();
+            log.info("Found API permission: id={}, name={}, isPublic={}, isCritical={}", 
+                    apiPermission.getId(), apiPermission.getName(), apiPermission.isPublic(), apiPermission.isCritical());
             
             // Check if API is public
             if (apiPermission.isPublic()) {
                 log.info("API {} is public, access granted", apiPermission.getName());
+                log.info("=== UnifiedAclService.hasPermission() END - PUBLIC ACCESS ===");
                 return true;
             }
             
@@ -78,15 +104,104 @@ public class UnifiedAclService {
                 boolean hasPermission = rolePermissionRepository.existsByRoleAndPermission(role, apiPermission);
                 if (hasPermission) {
                     log.info("Permission found for user {} with role {}", username, role.getName());
+                    log.info("=== UnifiedAclService.hasPermission() END - PERMISSION GRANTED ===");
                     return true;
                 }
             }
             
             log.warn("No permission found for user {} on any role for API {}", username, apiPermission.getName());
+            log.info("=== UnifiedAclService.hasPermission() END - PERMISSION DENIED ===");
             return false;
             
         } catch (Exception e) {
-            log.error("Error checking permission: {}", e.getMessage());
+            log.error("=== UnifiedAclService.hasPermission() END - ERROR ===");
+            log.error("Error checking permission: username={}, projectName={}, apiPath={}, httpMethod={}, permissionName={}, error={}", 
+                    username, projectName, apiPath, httpMethod, permissionName, e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * Check if user has permission by permission name only
+     */
+    public boolean hasPermissionByName(String username, String permissionName) {
+        log.info("=== UnifiedAclService.hasPermissionByName() START ===");
+        log.info("Parameters: username={}, permissionName={}", username, permissionName);
+        
+        try {
+            // Find user
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                log.warn("User not found: username={}", username);
+                log.info("=== UnifiedAclService.hasPermissionByName() END - USER NOT FOUND ===");
+                return false;
+            }
+            
+            User user = userOpt.get();
+            Set<Group> userGroups = user.getGroups();
+            
+            if (userGroups == null || userGroups.isEmpty()) {
+                log.warn("User {} has no groups assigned", username);
+                log.info("=== UnifiedAclService.hasPermissionByName() END - NO GROUPS ===");
+                return false;
+            }
+            
+            log.info("User {} belongs to {} groups: {}", username, userGroups.size(),
+                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Get all roles from all user's groups
+            List<Role> userRoles = userGroups.stream()
+                    .flatMap(group -> group.getRoles().stream())
+                    .distinct()
+                    .toList();
+            
+            if (userRoles.isEmpty()) {
+                log.warn("User {} has no roles through groups", username);
+                log.info("=== UnifiedAclService.hasPermissionByName() END - NO ROLES ===");
+                return false;
+            }
+            
+            log.info("User {} has {} roles: {}", username, userRoles.size(),
+                    userRoles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Find API permission by name
+            Optional<ApiPermission> apiPermissionOpt = apiPermissionRepository.findSingleByName(permissionName);
+            
+            if (apiPermissionOpt.isEmpty()) {
+                log.warn("API permission not found: permissionName={}", permissionName);
+                log.info("=== UnifiedAclService.hasPermissionByName() END - PERMISSION NOT FOUND ===");
+                return false;
+            }
+            
+            ApiPermission apiPermission = apiPermissionOpt.get();
+            log.info("Found API permission: id={}, name={}, isPublic={}, isCritical={}", 
+                    apiPermission.getId(), apiPermission.getName(), apiPermission.isPublic(), apiPermission.isCritical());
+            
+            // Check if API is public
+            if (apiPermission.isPublic()) {
+                log.info("API {} is public, access granted", apiPermission.getName());
+                log.info("=== UnifiedAclService.hasPermissionByName() END - PUBLIC ACCESS ===");
+                return true;
+            }
+            
+            // Check if any of user's roles has this permission
+            for (Role role : userRoles) {
+                boolean hasPermission = rolePermissionRepository.existsByRoleAndPermission(role, apiPermission);
+                if (hasPermission) {
+                    log.info("Permission found for user {} with role {}", username, role.getName());
+                    log.info("=== UnifiedAclService.hasPermissionByName() END - PERMISSION GRANTED ===");
+                    return true;
+                }
+            }
+            
+            log.warn("No permission found for user {} on any role for API {}", username, apiPermission.getName());
+            log.info("=== UnifiedAclService.hasPermissionByName() END - PERMISSION DENIED ===");
+            return false;
+            
+        } catch (Exception e) {
+            log.error("=== UnifiedAclService.hasPermissionByName() END - ERROR ===");
+            log.error("Error checking permission by name: username={}, permissionName={}, error={}", 
+                    username, permissionName, e.getMessage(), e);
             return false;
         }
     }

@@ -11,8 +11,5 @@ public record UserGroupAssignRequest(
     String username,
     
     @Schema(description = "نام گروه", example = "admin_group")
-    String groupName,
-    
-    @Schema(description = "آیا گروه اصلی است", example = "true")
-    boolean isPrimary
+    String groupName
 ) {}

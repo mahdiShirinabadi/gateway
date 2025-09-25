@@ -39,12 +39,11 @@ public class UserGroupController {
             @Parameter(description = "اطلاعات تخصیص کاربر به گروه", required = true)
             @RequestBody UserGroupAssignRequest request) {
         
-        log.info("Assigning user {} to group {} (primary: {})", request.username(), request.groupName(), request.isPrimary());
+        log.info("Assigning user {} to group {}", request.username(), request.groupName());
         
         UserGroup userGroup = aclService.assignUserToGroup(
                 request.username(),
-                request.groupName(),
-                request.isPrimary()
+                request.groupName()
         );
         
         log.info("User assigned successfully to group");

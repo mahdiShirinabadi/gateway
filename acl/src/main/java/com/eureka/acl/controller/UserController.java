@@ -53,16 +53,25 @@ public class UserController {
             @Parameter(description = "اطلاعات کاربر جدید", required = true)
             @RequestBody UserCreateRequest request) {
         
-        log.info("Creating new user: {}", request.username());
+        log.info("=== UserController.createUser() START ===");
+        log.info("Request parameters: username={}, email={}, fullName={}", 
+                request.username(), request.email(), request.fullName());
         
-        User user = aclService.createUser(
-                request.username(),
-                request.email(),
-                request.fullName()
-        );
-        
-        log.info("User created successfully: {}", user.getUsername());
-        return ResponseEntity.ok(user);
+        try {
+            User user = aclService.createUser(
+                    request.username(),
+                    request.email(),
+                    request.fullName()
+            );
+            
+            log.info("User created successfully: id={}, username={}", user.getId(), user.getUsername());
+            log.info("=== UserController.createUser() END - SUCCESS ===");
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            log.error("=== UserController.createUser() END - ERROR ===");
+            log.error("Error creating user: username={}, error={}", request.username(), e.getMessage(), e);
+            throw e;
+        }
     }
     
     @Operation(

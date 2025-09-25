@@ -21,7 +21,6 @@ public class AclService {
     private final RoleRepository roleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final UserRepository userRepository;
-    private final UserRoleRepository userRoleRepository;
     private final GroupRepository groupRepository;
     private final UserGroupRepository userGroupRepository;
     private final GroupRoleRepository groupRoleRepository;
@@ -31,47 +30,88 @@ public class AclService {
      * Create a new user
      */
     public User createUser(String username, String email, String fullName) {
-        log.info("Creating user: {}", username);
+        log.info("=== AclService.createUser() START ===");
+        log.info("Parameters: username={}, email={}, fullName={}", username, email, fullName);
         
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setFullName(fullName);
-        
-        User savedUser = userRepository.save(user);
-        log.info("User created successfully: {}", savedUser.getUsername());
-        return savedUser;
+        try {
+            User user = new User();
+            user.setUsername(username);
+            user.setEmail(email);
+            user.setFullName(fullName);
+            
+            User savedUser = userRepository.save(user);
+            log.info("User created successfully: id={}, username={}", savedUser.getId(), savedUser.getUsername());
+            log.info("=== AclService.createUser() END - SUCCESS ===");
+            return savedUser;
+        } catch (Exception e) {
+            log.error("=== AclService.createUser() END - ERROR ===");
+            log.error("Error creating user: username={}, error={}", username, e.getMessage(), e);
+            throw e;
+        }
     }
     
     /**
      * Get all users
      */
     public List<User> getAllUsers() {
-        log.info("Getting all users");
-        return userRepository.findAll();
+        log.info("=== AclService.getAllUsers() START ===");
+        
+        try {
+            List<User> users = userRepository.findAll();
+            log.info("Found {} users", users.size());
+            log.info("=== AclService.getAllUsers() END - SUCCESS ===");
+            return users;
+        } catch (Exception e) {
+            log.error("=== AclService.getAllUsers() END - ERROR ===");
+            log.error("Error getting all users: {}", e.getMessage(), e);
+            throw e;
+        }
     }
     
     /**
      * Get user by username
      */
     public Optional<User> getUserByUsername(String username) {
-        log.info("Getting user by username: {}", username);
-        return userRepository.findByUsername(username);
+        log.info("=== AclService.getUserByUsername() START ===");
+        log.info("Parameters: username={}", username);
+        
+        try {
+            Optional<User> user = userRepository.findByUsername(username);
+            if (user.isPresent()) {
+                log.info("User found: id={}, username={}", user.get().getId(), user.get().getUsername());
+            } else {
+                log.warn("User not found: username={}", username);
+            }
+            log.info("=== AclService.getUserByUsername() END - SUCCESS ===");
+            return user;
+        } catch (Exception e) {
+            log.error("=== AclService.getUserByUsername() END - ERROR ===");
+            log.error("Error getting user by username: username={}, error={}", username, e.getMessage(), e);
+            throw e;
+        }
     }
     
     /**
      * Create a new role
      */
     public Role createRole(String name, String description) {
-        log.info("Creating role: {}", name);
+        log.info("=== AclService.createRole() START ===");
+        log.info("Parameters: name={}, description={}", name, description);
         
-        Role role = new Role();
-        role.setName(name);
-        role.setDescription(description);
-        
-        Role savedRole = roleRepository.save(role);
-        log.info("Role created successfully: {}", savedRole.getName());
-        return savedRole;
+        try {
+            Role role = new Role();
+            role.setName(name);
+            role.setDescription(description);
+            
+            Role savedRole = roleRepository.save(role);
+            log.info("Role created successfully: id={}, name={}", savedRole.getId(), savedRole.getName());
+            log.info("=== AclService.createRole() END - SUCCESS ===");
+            return savedRole;
+        } catch (Exception e) {
+            log.error("=== AclService.createRole() END - ERROR ===");
+            log.error("Error creating role: name={}, error={}", name, e.getMessage(), e);
+            throw e;
+        }
     }
     
     /**
@@ -214,139 +254,6 @@ public class AclService {
         return true;
     }
     
-    /**
-     * Assign role to user
-     */
-    public UserRole assignRoleToUser(String username, String roleName, boolean isPrimary) {
-        log.info("Assigning role {} to user {} (primary: {})", roleName, username, isPrimary);
-        
-        // Find user
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("User not found: " + username);
-        }
-        
-        // Find role
-        Optional<Role> roleOpt = roleRepository.findByName(roleName);
-        if (roleOpt.isEmpty()) {
-            throw new RuntimeException("Role not found: " + roleName);
-        }
-        
-        User user = userOpt.get();
-        Role role = roleOpt.get();
-        
-        // Check if already exists
-        if (userRoleRepository.existsByUserAndRole(user, role)) {
-            log.info("Role already assigned to user");
-            return userRoleRepository.findByUserAndRole(user, role).orElse(null);
-        }
-        
-        // Create new user role
-        UserRole userRole = new UserRole();
-        userRole.setUser(user);
-        userRole.setRole(role);
-        userRole.setPrimary(isPrimary);
-        
-        UserRole saved = userRoleRepository.save(userRole);
-        log.info("Role assigned successfully to user");
-        return saved;
-    }
-    
-    /**
-     * Get all user roles
-     */
-    public List<UserRole> getAllUserRoles() {
-        log.info("Getting all user roles");
-        return userRoleRepository.findAll();
-    }
-    
-    /**
-     * Get user roles by user
-     */
-    public List<UserRole> getUserRolesByUser(String username) {
-        log.info("Getting user roles for user: {}", username);
-        
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            log.warn("User not found: {}", username);
-            return List.of();
-        }
-        
-        return userRoleRepository.findByUserId(userOpt.get().getId());
-    }
-    
-    /**
-     * Get user roles by role
-     */
-    public List<UserRole> getUserRolesByRole(String roleName) {
-        log.info("Getting user roles for role: {}", roleName);
-        
-        Optional<Role> roleOpt = roleRepository.findByName(roleName);
-        if (roleOpt.isEmpty()) {
-            log.warn("Role not found: {}", roleName);
-            return List.of();
-        }
-        
-        return userRoleRepository.findByRoleId(roleOpt.get().getId());
-    }
-    
-    /**
-     * Remove role from user
-     */
-    public boolean removeRoleFromUser(String username, String roleName) {
-        log.info("Removing role {} from user {}", roleName, username);
-        
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            log.warn("User not found: {}", username);
-            return false;
-        }
-        
-        Optional<Role> roleOpt = roleRepository.findByName(roleName);
-        if (roleOpt.isEmpty()) {
-            log.warn("Role not found: {}", roleName);
-            return false;
-        }
-        
-        User user = userOpt.get();
-        Role role = roleOpt.get();
-        
-        Optional<UserRole> userRoleOpt = userRoleRepository.findByUserAndRole(user, role);
-        if (userRoleOpt.isEmpty()) {
-            log.warn("User role not found");
-            return false;
-        }
-        
-        userRoleRepository.delete(userRoleOpt.get());
-        log.info("Role removed successfully from user");
-        return true;
-    }
-    
-    /**
-     * Check if user has role
-     */
-    public boolean userHasRole(String username, String roleName) {
-        log.info("Checking if user {} has role {}", username, roleName);
-        
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            log.warn("User not found: {}", username);
-            return false;
-        }
-        
-        Optional<Role> roleOpt = roleRepository.findByName(roleName);
-        if (roleOpt.isEmpty()) {
-            log.warn("Role not found: {}", roleName);
-            return false;
-        }
-        
-        User user = userOpt.get();
-        Role role = roleOpt.get();
-        
-        boolean hasRole = userRoleRepository.existsByUserAndRole(user, role);
-        log.info("User {} has role {}: {}", username, roleName, hasRole);
-        return hasRole;
-    }
     
     /**
      * Update role permissions (delete all existing + create new ones) - Transactional
@@ -386,50 +293,6 @@ public class AclService {
         return newPermissions;
     }
     
-    /**
-     * Update user roles (delete all existing + create new ones) - Transactional
-     */
-    @Transactional
-    public List<UserRole> updateUserRoles(String username, List<String> roleNames) {
-        log.info("Updating roles for user: {} with {} roles", username, roleNames.size());
-        
-        // Find user
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("User not found: " + username);
-        }
-        
-        User user = userOpt.get();
-        
-        // Delete all existing user roles
-        List<UserRole> existingRoles = userRoleRepository.findByUserId(user.getId());
-        userRoleRepository.deleteAll(existingRoles);
-        log.info("Deleted {} existing roles for user: {}", existingRoles.size(), username);
-        
-        // Create new user roles
-        List<UserRole> newRoles = new ArrayList<>();
-        for (String roleName : roleNames) {
-            Optional<Role> roleOpt = roleRepository.findByName(roleName);
-            if (roleOpt.isPresent()) {
-                UserRole userRole = new UserRole();
-                userRole.setUser(user);
-                userRole.setRole(roleOpt.get());
-                userRole.setPrimary(false); // Only first role can be primary
-                newRoles.add(userRoleRepository.save(userRole));
-            } else {
-                log.warn("Role not found: {}", roleName);
-            }
-        }
-        
-        // Set first role as primary if any roles exist
-        if (!newRoles.isEmpty()) {
-            newRoles.get(0).setPrimary(true);
-            userRoleRepository.save(newRoles.get(0));
-        }
-        
-        log.info("Created {} new roles for user: {}", newRoles.size(), username);
-        return newRoles;
-    }
     
     // ==================== GROUP MANAGEMENT ====================
     
@@ -469,8 +332,8 @@ public class AclService {
      * Assign user to group
      */
     @Transactional
-    public UserGroup assignUserToGroup(String username, String groupName, boolean isPrimary) {
-        log.info("Assigning user {} to group {} (primary: {})", username, groupName, isPrimary);
+    public UserGroup assignUserToGroup(String username, String groupName) {
+        log.info("Assigning user {} to group {}", username, groupName);
         
         // Find user
         Optional<User> userOpt = userRepository.findByUsername(username);
@@ -497,7 +360,6 @@ public class AclService {
         UserGroup userGroup = new UserGroup();
         userGroup.setUser(user);
         userGroup.setGroup(group);
-        userGroup.setPrimary(isPrimary);
         
         UserGroup saved = userGroupRepository.save(userGroup);
         log.info("User assigned successfully to group");
@@ -616,17 +478,10 @@ public class AclService {
                 UserGroup userGroup = new UserGroup();
                 userGroup.setUser(user);
                 userGroup.setGroup(groupOpt.get());
-                userGroup.setPrimary(false); // Only first group can be primary
                 newGroups.add(userGroupRepository.save(userGroup));
             } else {
                 log.warn("Group not found: {}", groupName);
             }
-        }
-        
-        // Set first group as primary if any groups exist
-        if (!newGroups.isEmpty()) {
-            newGroups.get(0).setPrimary(true);
-            userGroupRepository.save(newGroups.get(0));
         }
         
         log.info("Created {} new groups for user: {}", newGroups.size(), username);
@@ -672,49 +527,108 @@ public class AclService {
     }
     
     /**
-     * Get all roles for a user
+     * Get all roles for a user (through groups)
      */
     public List<Role> getUserRoles(String username) {
-        log.info("Getting roles for user: {}", username);
+        log.info("=== AclService.getUserRoles() START ===");
+        log.info("Parameters: username={}", username);
         
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            log.warn("User not found: {}", username);
-            return List.of();
+        try {
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                log.warn("User not found: username={}", username);
+                log.info("=== AclService.getUserRoles() END - USER NOT FOUND ===");
+                return List.of();
+            }
+            
+            User user = userOpt.get();
+            Set<Group> userGroups = user.getGroups();
+            
+            if (userGroups == null || userGroups.isEmpty()) {
+                log.warn("User {} has no groups assigned", username);
+                log.info("=== AclService.getUserRoles() END - NO GROUPS ===");
+                return List.of();
+            }
+            
+            log.info("User {} belongs to {} groups: {}", username, userGroups.size(), 
+                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Get all roles from all user's groups
+            List<Role> userRoles = userGroups.stream()
+                    .flatMap(group -> group.getRoles().stream())
+                    .distinct()
+                    .toList();
+            
+            log.info("User {} has {} roles: {}", username, userRoles.size(), 
+                    userRoles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList()));
+            log.info("=== AclService.getUserRoles() END - SUCCESS ===");
+            return userRoles;
+        } catch (Exception e) {
+            log.error("=== AclService.getUserRoles() END - ERROR ===");
+            log.error("Error getting user roles: username={}, error={}", username, e.getMessage(), e);
+            throw e;
         }
-        
-        return userRoleRepository.findByUserId(userOpt.get().getId())
-                .stream()
-                .map(UserRole::getRole)
-                .toList();
     }
     
     /**
-     * Get all permissions for a user (from all their roles)
+     * Get all permissions for a user (from all their roles through groups)
      */
     public List<ApiPermission> getUserPermissions(String username) {
-        log.info("Getting permissions for user: {}", username);
+        log.info("=== AclService.getUserPermissions() START ===");
+        log.info("Parameters: username={}", username);
         
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            log.warn("User not found: {}", username);
-            return List.of();
+        try {
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                log.warn("User not found: username={}", username);
+                log.info("=== AclService.getUserPermissions() END - USER NOT FOUND ===");
+                return List.of();
+            }
+            
+            User user = userOpt.get();
+            Set<Group> userGroups = user.getGroups();
+            
+            if (userGroups == null || userGroups.isEmpty()) {
+                log.warn("User {} has no groups assigned", username);
+                log.info("=== AclService.getUserPermissions() END - NO GROUPS ===");
+                return List.of();
+            }
+            
+            log.info("User {} belongs to {} groups: {}", username, userGroups.size(),
+                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Get all roles from all user's groups
+            List<Role> userRoles = userGroups.stream()
+                    .flatMap(group -> group.getRoles().stream())
+                    .distinct()
+                    .toList();
+            
+            if (userRoles.isEmpty()) {
+                log.warn("User {} has no roles through groups", username);
+                log.info("=== AclService.getUserPermissions() END - NO ROLES ===");
+                return List.of();
+            }
+            
+            log.info("User {} has {} roles: {}", username, userRoles.size(),
+                    userRoles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList()));
+            
+            // Get all permissions from all user roles
+            List<ApiPermission> permissions = userRoles.stream()
+                    .flatMap(role -> rolePermissionRepository.findByRoleId(role.getId()).stream())
+                    .map(RolePermission::getPermission)
+                    .distinct()  // Remove duplicates
+                    .toList();
+            
+            log.info("User {} has {} permissions: {}", username, permissions.size(),
+                    permissions.stream().map(ApiPermission::getName).collect(java.util.stream.Collectors.toList()));
+            log.info("=== AclService.getUserPermissions() END - SUCCESS ===");
+            return permissions;
+            
+        } catch (Exception e) {
+            log.error("=== AclService.getUserPermissions() END - ERROR ===");
+            log.error("Error getting user permissions: username={}, error={}", username, e.getMessage(), e);
+            throw e;
         }
-        
-        User user = userOpt.get();
-        Set<Role> userRoles = user.getRoles();
-        
-        if (userRoles == null || userRoles.isEmpty()) {
-            log.warn("User {} has no roles assigned", username);
-            return List.of();
-        }
-        
-        // Get all permissions from all user roles
-        return userRoles.stream()
-                .flatMap(role -> rolePermissionRepository.findByRoleId(role.getId()).stream())
-                .map(RolePermission::getPermission)
-                .distinct()  // Remove duplicates
-                .toList();
     }
     
 }

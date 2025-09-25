@@ -54,17 +54,24 @@ public class AclRegistrationService {
      */
     private boolean registerMethod(String service, String method, String httpMethod, String description) {
         try {
+            String permissionName = service.toUpperCase() + "_" + method.toUpperCase() + "_ACCESS";
+            String apiPath = "/" + method;
+            String persianName = "دسترسی به " + method;
+            
             Map<String, Object> request = new HashMap<>();
-            request.put("service", service);
-            request.put("method", method);
+            request.put("name", permissionName);
+            request.put("projectName", service);
+            request.put("apiPath", apiPath);
             request.put("httpMethod", httpMethod);
             request.put("description", description);
-            request.put("permission", service.toUpperCase() + "_" + method.toUpperCase() + "_ACCESS");
+            request.put("persianName", persianName);
+            request.put("isCritical", false);
+            request.put("isPublic", false);
             
             String requestBody = objectMapper.writeValueAsString(request);
             
             HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8080/acl/api/acl/register"))
+                    .uri(URI.create("http://localhost:8083/api/acl/register"))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .timeout(Duration.ofSeconds(10))
@@ -76,7 +83,7 @@ public class AclRegistrationService {
                 Map<String, Object> responseBody = objectMapper.readValue(response.body(), Map.class);
                 Boolean success = (Boolean) responseBody.get("success");
                 
-                log.debug("Method registered: {} - {}", service, method);
+                log.debug("Method registered: {} - {} at {}", service, method, apiPath);
                 return success != null && success;
             } else {
                 log.warn("ACL registration returned status: {}", response.statusCode());

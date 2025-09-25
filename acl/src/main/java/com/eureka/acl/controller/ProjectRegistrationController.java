@@ -1,7 +1,6 @@
 package com.eureka.acl.controller;
 
 import com.eureka.acl.entity.Project;
-import com.eureka.acl.entity.ProjectApi;
 import com.eureka.acl.service.ProjectRegistrationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -56,37 +55,8 @@ public class ProjectRegistrationController {
         return ResponseEntity.ok(project);
     }
     
-    @Operation(
-            summary = "ثبت API های پروژه",
-            description = "لیستی از API های یک پروژه را ثبت می‌کند"
-    )
-    @PostMapping("/{projectName}/apis")
-    public ResponseEntity<String> registerProjectApis(
-            @Parameter(description = "نام پروژه", required = true, example = "user-service")
-            @PathVariable String projectName, 
-            @Parameter(description = "لیست API های پروژه", required = true)
-            @RequestBody List<ProjectRegistrationService.ApiRegistration> apis) {
-        log.info("API registration request for project: {} with {} APIs", projectName, apis.size());
-        
-        projectRegistrationService.registerProjectApis(projectName, apis);
-        
-        return ResponseEntity.ok("APIs registered successfully for project: " + projectName);
-    }
-    
-    @Operation(
-            summary = "دریافت API های پروژه",
-            description = "لیست تمام API های یک پروژه مشخص را برمی‌گرداند"
-    )
-    @GetMapping("/{projectName}/apis")
-    public ResponseEntity<List<ProjectApi>> getProjectApis(
-            @Parameter(description = "نام پروژه", required = true, example = "user-service")
-            @PathVariable String projectName) {
-        log.info("Getting APIs for project: {}", projectName);
-        
-        List<ProjectApi> apis = projectRegistrationService.getProjectApis(projectName);
-        
-        return ResponseEntity.ok(apis);
-    }
+
+
     
     @Operation(
             summary = "دریافت تمام پروژه‌ها",

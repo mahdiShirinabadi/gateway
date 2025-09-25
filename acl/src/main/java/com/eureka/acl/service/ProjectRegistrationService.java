@@ -19,9 +19,7 @@ import java.util.Optional;
 public class ProjectRegistrationService {
     
     private final ProjectRepository projectRepository;
-    private final ProjectApiRepository projectApiRepository;
-    private final PermissionRepository permissionRepository;
-    
+
     @Transactional
     public Project registerProject(String name, String description, String baseUrl, String version) {
         log.info("Registering project: {} with base URL: {}", name, baseUrl);
@@ -49,71 +47,6 @@ public class ProjectRegistrationService {
         Project savedProject = projectRepository.save(project);
         log.info("Project {} registered successfully", name);
         return savedProject;
-    }
-    
-    @Transactional
-    public void registerProjectApis(String projectName, List<ApiRegistration> apis) {
-        log.info("Registering {} APIs for project: {}", apis.size(), projectName);
-        
-        Optional<Project> projectOpt = projectRepository.findByName(projectName);
-        if (projectOpt.isEmpty()) {
-            log.error("Project {} not found", projectName);
-            throw new RuntimeException("Project not found: " + projectName);
-        }
-        
-        Project project = projectOpt.get();
-        
-        for (ApiRegistration api : apis) {
-            // Check if permission exists, if not create it
-            Optional<Permission> permissionOpt = permissionRepository.findByName(api.getPermissionName());
-            if (permissionOpt.isEmpty()) {
-                log.info("Creating permission: {} for project: {}", api.getPermissionName(), projectName);
-                Permission permission = new Permission();
-                permission.setName(api.getPermissionName());
-                permission.setProjectName(projectName);
-                permission.setCritical(api.isCritical());
-                permission.setPersianName(api.getPersianName());
-                permission.setCreateBy("System");
-                permission.setCreateTime(LocalDateTime.now());
-                permissionRepository.save(permission);
-            }
-            
-            // Check if API already exists
-            Optional<ProjectApi> existingApi = projectApiRepository.findByProjectNameAndApiPathAndMethod(
-                    projectName, api.getApiPath(), api.getHttpMethod());
-            
-            if (existingApi.isPresent()) {
-                log.info("API {} {} already exists for project {}, updating...", 
-                        api.getHttpMethod(), api.getApiPath(), projectName);
-                ProjectApi projectApi = existingApi.get();
-                projectApi.setDescription(api.getDescription());
-                projectApi.setPermissionName(api.getPermissionName());
-                projectApi.setPublic(api.isPublic());
-                projectApi.setUpdateBy("System");
-                projectApi.setUpdateTime(LocalDateTime.now());
-                projectApiRepository.save(projectApi);
-            } else {
-                log.info("Creating new API: {} {} for project: {}", 
-                        api.getHttpMethod(), api.getApiPath(), projectName);
-                ProjectApi projectApi = new ProjectApi();
-                projectApi.setProject(project);
-                projectApi.setApiPath(api.getApiPath());
-                projectApi.setHttpMethod(api.getHttpMethod());
-                projectApi.setPermissionName(api.getPermissionName());
-                projectApi.setDescription(api.getDescription());
-                projectApi.setPublic(api.isPublic());
-                projectApi.setCreateBy("System");
-                projectApi.setCreateTime(LocalDateTime.now());
-                projectApiRepository.save(projectApi);
-            }
-        }
-        
-        log.info("Successfully registered {} APIs for project: {}", apis.size(), projectName);
-    }
-    
-    public List<ProjectApi> getProjectApis(String projectName) {
-        log.info("Getting APIs for project: {}", projectName);
-        return projectApiRepository.findByProjectName(projectName);
     }
     
     public List<Project> getAllProjects() {

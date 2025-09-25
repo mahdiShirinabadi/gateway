@@ -16,7 +16,6 @@ import java.time.LocalDateTime;
 @Table(name = "role_permissions")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class RolePermission {
     
@@ -30,7 +29,7 @@ public class RolePermission {
     
     @ManyToOne
     @JoinColumn(name = "permission_id", nullable = false)
-    private Permission permission;
+    private ApiPermission permission;
     
     // Audit fields
     @CreatedDate

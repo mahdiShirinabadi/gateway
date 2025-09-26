@@ -59,8 +59,8 @@ public class RolePermissionService {
             RolePermission rolePermission = new RolePermission();
             rolePermission.setRole(role);
             rolePermission.setPermission(permission);
-            rolePermission.setCreateBy("system");
-            rolePermission.setCreateTime(java.time.LocalDateTime.now());
+            rolePermission.setCreatedBy("system");
+            rolePermission.setCreatedAt(java.time.LocalDateTime.now());
             
             rolePermissionRepository.save(rolePermission);
             log.info("Permission {} successfully assigned to role {}", permissionId, roleId);

@@ -6,17 +6,16 @@
 -- ==============================================
 -- 1. CREATE CORE TABLES
 -- ==============================================
-
 -- Create roles table
 CREATE TABLE roles (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     description VARCHAR(500),
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255)
 );
 
@@ -26,11 +25,11 @@ CREATE TABLE users (
     username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255),
     full_name VARCHAR(255),
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255)
 );
 
@@ -41,11 +40,11 @@ CREATE TABLE projects (
     description VARCHAR(500),
     base_url VARCHAR(500),
     version VARCHAR(50),
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255)
 );
 
@@ -60,11 +59,11 @@ CREATE TABLE api_permissions (
     persian_name VARCHAR(255) NOT NULL,          -- persian name
     is_critical BOOLEAN NOT NULL DEFAULT FALSE,   -- is critical permission
     is_public BOOLEAN NOT NULL DEFAULT FALSE,     -- is public API
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255),
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
@@ -74,11 +73,11 @@ CREATE TABLE role_permissions (
     id BIGSERIAL PRIMARY KEY,
     role_id BIGINT NOT NULL,
     permission_id BIGINT NOT NULL,
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255),
     FOREIGN KEY (role_id) REFERENCES roles(id),
     FOREIGN KEY (permission_id) REFERENCES api_permissions(id),
@@ -95,11 +94,11 @@ CREATE TABLE groups (
     name VARCHAR(255) NOT NULL UNIQUE,
     description VARCHAR(500),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255)
 );
 
@@ -108,11 +107,11 @@ CREATE TABLE user_groups (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
     group_id BIGINT NOT NULL,
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (group_id) REFERENCES groups(id),
@@ -124,11 +123,11 @@ CREATE TABLE group_roles (
     id BIGSERIAL PRIMARY KEY,
     group_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
-    create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    create_by VARCHAR(255) NOT NULL DEFAULT 'system',
-    update_time TIMESTAMP,
-    update_by VARCHAR(255),
-    deleted_time TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255) NOT NULL DEFAULT 'system',
+    updated_at TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP,
     deleted_by VARCHAR(255),
     FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (role_id) REFERENCES roles(id),
@@ -164,51 +163,51 @@ CREATE INDEX idx_group_roles_role_id ON group_roles(role_id);
 -- ==============================================
 
 -- Create default roles
-INSERT INTO roles (name, description, create_by) VALUES
+INSERT INTO roles (name, description, created_by) VALUES
 ('ADMIN', 'Administrator role with full access', 'system'),
 ('USER', 'Regular user role with limited access', 'system'),
 ('GUEST', 'Guest role with minimal access', 'system');
 
 -- Create default users with email and full name
-INSERT INTO users (username, email, full_name, create_by) VALUES
+INSERT INTO users (username, email, full_name, created_by) VALUES
 ('admin', 'admin@example.com', 'Administrator User', 'system'),
 ('user', 'user@example.com', 'Regular User', 'system'),
 ('guest', 'guest@example.com', 'Guest User', 'system');
 
 -- Create default projects
-INSERT INTO projects (name, description, base_url, version, create_by) VALUES
+INSERT INTO projects (name, description, base_url, version, created_by) VALUES
 ('service1', 'Service1 API', 'http://localhost:8082', '1.0.0', 'system'),
 ('gateway', 'API Gateway', 'http://localhost:8080', '1.0.0', 'system'),
 ('sso', 'Single Sign-On Service', 'http://localhost:8081', '1.0.0', 'system'),
 ('acl', 'Access Control List Service', 'http://localhost:8083', '1.0.0', 'system');
 
 -- Create default groups
-INSERT INTO groups (name, description, is_active, create_by) VALUES
+INSERT INTO groups (name, description, is_active, created_by) VALUES
 ('admin_group', 'Administrator group with full access', TRUE, 'system'),
 ('user_group', 'Regular user group with limited access', TRUE, 'system'),
 ('guest_group', 'Guest group with minimal access', TRUE, 'system'),
 ('manager_group', 'Manager group with management access', TRUE, 'system');
 
 -- Create default API permissions for service1
-INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, create_by) VALUES
+INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, created_by) VALUES
 ('SERVICE1_HELLO_ACCESS', (SELECT id FROM projects WHERE name = 'service1'), '/hello', 'GET', 'Access to hello endpoint', 'دسترسی به صفحه سلام', false, false, 'system'),
 ('SERVICE1_USERS_ACCESS', (SELECT id FROM projects WHERE name = 'service1'), '/users', 'GET', 'Access to users endpoint', 'دسترسی به لیست کاربران', false, false, 'system'),
 ('SERVICE1_USERS_CREATE', (SELECT id FROM projects WHERE name = 'service1'), '/users', 'POST', 'Create user endpoint', 'ایجاد کاربر جدید', true, false, 'system'),
 ('SERVICE1_ADMIN_ACCESS', (SELECT id FROM projects WHERE name = 'service1'), '/admin', 'GET', 'Admin panel access', 'دسترسی به پنل مدیریت', true, false, 'system');
 
 -- Create default API permissions for gateway
-INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, create_by) VALUES
+INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, created_by) VALUES
 ('GATEWAY_HEALTH_ACCESS', (SELECT id FROM projects WHERE name = 'gateway'), '/health', 'GET', 'Gateway health check', 'بررسی وضعیت Gateway', false, true, 'system'),
 ('GATEWAY_ROUTES_ACCESS', (SELECT id FROM projects WHERE name = 'gateway'), '/routes', 'GET', 'Gateway routes info', 'اطلاعات مسیرهای Gateway', false, false, 'system');
 
 -- Create default API permissions for SSO
-INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, create_by) VALUES
+INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, created_by) VALUES
 ('SSO_LOGIN_ACCESS', (SELECT id FROM projects WHERE name = 'sso'), '/login', 'POST', 'SSO login endpoint', 'ورود به سیستم', false, true, 'system'),
 ('SSO_LOGOUT_ACCESS', (SELECT id FROM projects WHERE name = 'sso'), '/logout', 'POST', 'SSO logout endpoint', 'خروج از سیستم', false, true, 'system'),
 ('SSO_VALIDATE_ACCESS', (SELECT id FROM projects WHERE name = 'sso'), '/validate', 'POST', 'Token validation', 'اعتبارسنجی توکن', false, false, 'system');
 
 -- Create default API permissions for ACL
-INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, create_by) VALUES
+INSERT INTO api_permissions (name, project_id, api_path, http_method, description, persian_name, is_critical, is_public, created_by) VALUES
 ('ACL_CHECK_ACCESS', (SELECT id FROM projects WHERE name = 'acl'), '/check', 'POST', 'ACL permission check', 'بررسی مجوز ACL', false, false, 'system'),
 ('ACL_REGISTER_ACCESS', (SELECT id FROM projects WHERE name = 'acl'), '/register', 'POST', 'ACL registration', 'ثبت نام ACL', false, false, 'system'),
 ('ACL_HEALTH_ACCESS', (SELECT id FROM projects WHERE name = 'acl'), '/health', 'GET', 'ACL health check', 'بررسی وضعیت ACL', false, true, 'system');
@@ -217,7 +216,7 @@ INSERT INTO api_permissions (name, project_id, api_path, http_method, descriptio
 -- 5. ASSIGN USERS TO GROUPS
 -- ==============================================
 
-INSERT INTO user_groups (user_id, group_id, create_by) VALUES
+INSERT INTO user_groups (user_id, group_id, created_by) VALUES
 -- Admin user to admin_group and user_group
 ((SELECT id FROM users WHERE username = 'admin'), (SELECT id FROM groups WHERE name = 'admin_group'), 'system'),
 ((SELECT id FROM users WHERE username = 'admin'), (SELECT id FROM groups WHERE name = 'user_group'), 'system'),
@@ -230,7 +229,7 @@ INSERT INTO user_groups (user_id, group_id, create_by) VALUES
 -- 6. ASSIGN ROLES TO GROUPS
 -- ==============================================
 
-INSERT INTO group_roles (group_id, role_id, create_by) VALUES
+INSERT INTO group_roles (group_id, role_id, created_by) VALUES
 -- admin_group gets ADMIN and USER roles
 ((SELECT id FROM groups WHERE name = 'admin_group'), (SELECT id FROM roles WHERE name = 'ADMIN'), 'system'),
 ((SELECT id FROM groups WHERE name = 'admin_group'), (SELECT id FROM roles WHERE name = 'USER'), 'system'),
@@ -246,13 +245,13 @@ INSERT INTO group_roles (group_id, role_id, create_by) VALUES
 -- ==============================================
 
 -- ADMIN role gets all permissions
-INSERT INTO role_permissions (role_id, permission_id, create_by)
+INSERT INTO role_permissions (role_id, permission_id, created_by)
 SELECT r.id, p.id, 'system'
 FROM roles r, api_permissions p
 WHERE r.name = 'ADMIN';
 
 -- USER role gets basic permissions (no admin access)
-INSERT INTO role_permissions (role_id, permission_id, create_by)
+INSERT INTO role_permissions (role_id, permission_id, created_by)
 SELECT r.id, p.id, 'system'
 FROM roles r, api_permissions p
 WHERE r.name = 'USER'
@@ -260,7 +259,7 @@ AND p.name NOT LIKE '%ADMIN%'
 AND p.name NOT LIKE '%REGISTER%';
 
 -- GUEST role gets only public permissions
-INSERT INTO role_permissions (role_id, permission_id, create_by)
+INSERT INTO role_permissions (role_id, permission_id, created_by)
 SELECT r.id, p.id, 'system'
 FROM roles r, api_permissions p
 WHERE r.name = 'GUEST'

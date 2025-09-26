@@ -1,14 +1,7 @@
 package com.eureka.acl.service;
 
-import com.eureka.acl.entity.ApiPermission;
-import com.eureka.acl.entity.Group;
-import com.eureka.acl.entity.Project;
-import com.eureka.acl.entity.Role;
-import com.eureka.acl.entity.User;
-import com.eureka.acl.repository.ApiPermissionRepository;
-import com.eureka.acl.repository.ProjectRepository;
-import com.eureka.acl.repository.RolePermissionRepository;
-import com.eureka.acl.repository.UserRepository;
+import com.eureka.acl.entity.*;
+import com.eureka.acl.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -30,7 +23,8 @@ public class UnifiedAclService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final RolePermissionRepository rolePermissionRepository;
-    
+    private final UserGroupRepository userGroupRepository;
+
     /**
      * Check if user has permission for specific API
      * Supports multiple roles per user
@@ -50,20 +44,17 @@ public class UnifiedAclService {
             }
             
             User user = userOpt.get();
-            Set<Group> userGroups = user.getGroups();
+            List<UserGroup> userGroups = userGroupRepository.findByUserId(user.getId());
             
             if (userGroups == null || userGroups.isEmpty()) {
                 log.warn("User {} has no groups assigned", username);
                 log.info("=== UnifiedAclService.hasPermission() END - NO GROUPS ===");
                 return false;
             }
-            
-            log.info("User {} belongs to {} groups: {}", username, userGroups.size(),
-                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
-            
+
             // Get all roles from all user's groups
             List<Role> userRoles = userGroups.stream()
-                    .flatMap(group -> group.getRoles().stream())
+                    .flatMap(group -> group.getGroup().getRoles().stream())
                     .distinct()
                     .toList();
             

@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -550,12 +551,17 @@ public class AclService {
                 return List.of();
             }
             
-            log.info("User {} belongs to {} groups: {}", username, userGroups.size(), 
-                    userGroups.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
+            // Create defensive copy to avoid ConcurrentModificationException
+            List<Group> groupsList = new ArrayList<>(userGroups);
+            log.info("User {} belongs to {} groups: {}", username, groupsList.size(), 
+                    groupsList.stream().map(Group::getName).collect(java.util.stream.Collectors.toList()));
             
             // Get all roles from all user's groups
-            List<Role> userRoles = userGroups.stream()
-                    .flatMap(group -> group.getRoles().stream())
+            List<Role> userRoles = groupsList.stream()
+                    .flatMap(group -> {
+                        Set<Role> groupRoles = group.getRoles();
+                        return groupRoles != null ? groupRoles.stream() : Stream.empty();
+                    })
                     .distinct()
                     .toList();
             

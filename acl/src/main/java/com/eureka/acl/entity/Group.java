@@ -1,14 +1,8 @@
 package com.eureka.acl.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -16,11 +10,12 @@ import java.util.Set;
  */
 @Entity
 @Table(name = "groups")
-@Data
+@Setter
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@EntityListeners(AuditingEntityListener.class)
-public class Group {
+@EqualsAndHashCode(callSuper = true)
+public class Group extends Audit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,7 +27,7 @@ public class Group {
     @Column
     private String description;
 
-    @Column
+    @Column(name = "is_active")
     private boolean isActive = true;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -50,12 +45,4 @@ public class Group {
         inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles;
-
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 }

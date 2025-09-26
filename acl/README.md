@@ -13,7 +13,7 @@ CREATE TABLE permissions (
     is_critical BOOLEAN NOT NULL,
     persian_name VARCHAR(255) NOT NULL,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -27,7 +27,7 @@ CREATE TABLE roles (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL UNIQUE,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -42,7 +42,7 @@ CREATE TABLE role_permissions (
     role_id BIGINT NOT NULL,
     permission_id BIGINT NOT NULL,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -59,7 +59,7 @@ CREATE TABLE users (
     username VARCHAR(255) NOT NULL UNIQUE,
     role_id BIGINT NOT NULL,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -77,7 +77,7 @@ CREATE TABLE projects (
     base_url VARCHAR(255) NOT NULL,
     version VARCHAR(50) NOT NULL,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -96,7 +96,7 @@ CREATE TABLE project_apis (
     description VARCHAR(500) NOT NULL,
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
     create_time DATETIME NOT NULL,
-    create_by VARCHAR(255) NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
     update_time DATETIME,
     update_by VARCHAR(255),
     deleted_time DATETIME,
@@ -361,7 +361,7 @@ Add the permission mapping in `AuthenticationFilter.getPermissionNameForPath()` 
 ### Audit Fields
 All tables include the following audit fields:
 - `create_time` - When the record was created
-- `create_by` - Who created the record
+- `created_by` - Who created the record
 - `update_time` - When the record was last updated
 - `update_by` - Who last updated the record
 - `deleted_time` - When the record was deleted (soft delete)

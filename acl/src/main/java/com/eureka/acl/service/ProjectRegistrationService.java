@@ -31,8 +31,8 @@ public class ProjectRegistrationService {
             project.setDescription(description);
             project.setBaseUrl(baseUrl);
             project.setVersion(version);
-            project.setUpdateBy("System");
-            project.setUpdateTime(LocalDateTime.now());
+            project.setUpdatedBy("System");
+            project.setUpdatedAt(LocalDateTime.now());
             return projectRepository.save(project);
         }
         
@@ -41,8 +41,8 @@ public class ProjectRegistrationService {
         project.setDescription(description);
         project.setBaseUrl(baseUrl);
         project.setVersion(version);
-        project.setCreateBy("System");
-        project.setCreateTime(LocalDateTime.now());
+        project.setCreatedBy("System");
+        project.setCreatedAt(LocalDateTime.now());
         
         Project savedProject = projectRepository.save(project);
         log.info("Project {} registered successfully", name);

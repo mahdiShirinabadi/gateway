@@ -27,7 +27,7 @@ public class User extends Audit {
     @Column
     private String fullName;
     
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_groups",
         joinColumns = @JoinColumn(name = "user_id"),

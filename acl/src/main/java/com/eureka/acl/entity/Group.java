@@ -30,7 +30,7 @@ public class Group extends Audit {
     @Column(name = "is_active")
     private boolean isActive = true;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_groups",
         joinColumns = @JoinColumn(name = "group_id"),
@@ -38,7 +38,7 @@ public class Group extends Audit {
     )
     private Set<User> users;
 
-    @ManyToMany(fetch = FetchType.LAZY)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "group_roles",
         joinColumns = @JoinColumn(name = "group_id"),
